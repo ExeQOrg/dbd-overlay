@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { emit } from "@tauri-apps/api/event";
 import reactLogo from "./assets/react.svg";
 import "./App.css";
 
@@ -10,14 +11,24 @@ const logos = [
 
 function App() {
   const [search, setSearch] = useState("");
-
   const filtered = logos.filter((logo) =>
     logo.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  async function sendTestImage() {
+    await emit("update-content", { imageUrl: reactLogo });
+  }
+
   return (
     <main className="m-0 flex min-h-screen flex-col items-center bg-[#f6f6f6] pt-[10vh] text-center text-[#0f0f0f] dark:bg-[#2f2f2f] dark:text-[#f6f6f6]">
       <h1 className="mb-6 text-center">Welcome to Tauri + React</h1>
+
+      <button
+        onClick={sendTestImage}
+        className="mb-6 rounded-lg bg-[#396cd8] px-5 py-2.5 text-base font-medium text-white shadow-[0_2px_2px_rgba(0,0,0,0.2)]"
+      >
+        Send test image to overlay
+      </button>
 
       <input
         className="mb-6 w-full max-w-[320px] rounded-lg border border-transparent bg-white px-5 py-2.5 text-base font-medium text-[#0f0f0f] shadow-[0_2px_2px_rgba(0,0,0,0.2)] outline-none transition-colors duration-200 focus:border-[#396cd8] dark:bg-[#0f0f0f98] dark:text-white"
@@ -26,7 +37,6 @@ function App() {
         value={search}
         onChange={(e) => setSearch(e.currentTarget.value)}
       />
-
       <div className="grid w-full max-w-[500px] grid-cols-3 gap-6">
         {filtered.map((logo) => (
           <a
