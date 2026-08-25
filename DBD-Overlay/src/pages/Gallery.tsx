@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-import "./App.css";
 
 interface GalleryImage {
   name: string;
   path: string;
 }
 
-function App() {
+export default function Gallery() {
   const [search, setSearch] = useState("");
   const [images, setImages] = useState<GalleryImage[]>([]);
 
@@ -29,7 +28,7 @@ function App() {
   }
 
   return (
-    <main className="m-0 flex min-h-screen flex-col items-center bg-[#f6f6f6] pt-[10vh] text-center text-[#0f0f0f] dark:bg-[#2f2f2f] dark:text-[#f6f6f6]">
+    <main className="flex flex-col items-center px-8 pt-[10vh] text-center">
       <h1 className="mb-6 text-center">DBD Overlay Gallery</h1>
 
       <div className="mb-6 flex w-full max-w-[320px] gap-2">
@@ -74,5 +73,3 @@ function App() {
     </main>
   );
 }
-
-export default App;
