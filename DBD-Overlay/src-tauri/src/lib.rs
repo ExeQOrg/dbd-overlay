@@ -1,6 +1,9 @@
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::Serialize;
 use std::fs;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use xcap::Window;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -57,6 +60,84 @@ fn list_gallery_images(app: tauri::AppHandle) -> Result<Vec<GalleryImage>, Strin
     Ok(images)
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CapturableWindow {
+    title: String,
+    app_name: String,
+}
+
+// Titles xcap would otherwise report for this app's own windows - excluded
+// so the picker only ever lists other running programs.
+const OWN_WINDOW_TITLES: [&str; 2] = ["dbd-overlay", "Overlay"];
+
+#[tauri::command]
+fn list_capturable_windows() -> Result<Vec<CapturableWindow>, String> {
+    let windows = Window::all().map_err(|e| e.to_string())?;
+
+    let mut seen = std::collections::HashSet::new();
+    let mut result: Vec<CapturableWindow> = windows
+        .into_iter()
+        .filter_map(|w| {
+            let title = w.title().ok()?;
+            if title.trim().is_empty() || OWN_WINDOW_TITLES.contains(&title.as_str()) {
+                return None;
+            }
+            Some(CapturableWindow {
+                title,
+                app_name: w.app_name().unwrap_or_default(),
+            })
+        })
+        .filter(|w| seen.insert(w.title.clone()))
+        .collect();
+
+    result.sort_by(|a, b| a.title.cmp(&b.title));
+
+    Ok(result)
+}
+
+// x, y, width, height are fractions (0.0-1.0) of the captured window, so the
+// scan region stays correct regardless of the window's resolution/scaling.
+#[tauri::command]
+fn capture_screen_region(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    window_title: String,
+) -> Result<String, String> {
+    let windows = Window::all().map_err(|e| e.to_string())?;
+    let window = windows
+        .into_iter()
+        .find(|w| w.title().map(|t| t == window_title).unwrap_or(false))
+        .ok_or_else(|| format!("Window \"{}\" not found - is the game running?", window_title))?;
+
+    let mut image = window
+        .capture_image()
+        .map_err(|e| format!("failed to capture \"{}\": {}", window_title, e))?;
+
+    let win_width = image.width();
+    let win_height = image.height();
+
+    let px = (x.clamp(0.0, 1.0) * win_width as f64) as u32;
+    let py = (y.clamp(0.0, 1.0) * win_height as f64) as u32;
+    let pw = (width.clamp(0.0, 1.0) * win_width as f64)
+        .max(1.0)
+        .min((win_width.saturating_sub(px)) as f64) as u32;
+    let ph = (height.clamp(0.0, 1.0) * win_height as f64)
+        .max(1.0)
+        .min((win_height.saturating_sub(py)) as f64) as u32;
+
+    let cropped = image::imageops::crop(&mut image, px, py, pw, ph).to_image();
+
+    let mut buf: Vec<u8> = Vec::new();
+    image::DynamicImage::ImageRgba8(cropped)
+        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+        .map_err(|e| e.to_string())?;
+
+    Ok(format!("data:image/png;base64,{}", BASE64.encode(&buf)))
+}
+
 fn create_overlay(app: &tauri::AppHandle) -> tauri::Result<()> {
     let monitor = app
         .primary_monitor()?
@@ -87,10 +168,25 @@ fn create_overlay(app: &tauri::AppHandle) -> tauri::Result<()> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, list_gallery_images])
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        let _ = app.emit("trigger-scan", ());
+                    }
+                })
+                .build(),
+        )
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            list_gallery_images,
+            list_capturable_windows,
+            capture_screen_region
+        ])
         .setup(|app| {
             images_dir(app.handle())?;
             create_overlay(app.handle())?;
+            app.global_shortcut().register("CommandOrControl+O")?;
             Ok(())
         })
         .on_window_event(|window, event| {

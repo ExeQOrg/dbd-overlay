@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 const tabs = [
   { to: "/gallery", label: "Gallery" },
   { to: "/controls", label: "Overlay" },
+  { to: "/detect", label: "Detect" },
 ];
 
 const linkBase =
