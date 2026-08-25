@@ -47,7 +47,7 @@ export default function Gallery() {
         </button>
       </div>
 
-      <div className="grid w-full max-w-[500px] grid-cols-3 gap-6">
+      <div className="grid w-full grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-6">
         {filtered.map((image) => (
           <button
             key={image.path}
@@ -56,7 +56,7 @@ export default function Gallery() {
           >
             <img
               src={convertFileSrc(image.path)}
-              className="h-20 py-3"
+              className="h-44 py-3"
               alt={image.name}
             />
             <span>{image.name}</span>

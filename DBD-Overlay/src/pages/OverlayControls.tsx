@@ -14,7 +14,6 @@ const anchorOptions: { value: Anchor; label: string }[] = [
   { value: "top-right", label: "Top Right" },
   { value: "bottom-left", label: "Bottom Left" },
   { value: "bottom-right", label: "Bottom Right" },
-  { value: "center", label: "Center" },
 ];
 
 export default function OverlayControls() {
