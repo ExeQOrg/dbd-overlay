@@ -17,10 +17,10 @@ export default function Overlay() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', pointerEvents: 'none' }}>
-      {content.text && <p style={{ color: 'white', fontSize: '2rem' }}>{content.text}</p>}
+    <div className="pointer-events-none h-screen w-screen">
+      {content.text && <p className="text-2xl text-white">{content.text}</p>}
       {content.imageUrl && (
-        <img src={content.imageUrl} alt="" style={{ width: "200px", height: "auto" }} />
+        <img src={content.imageUrl} alt="" className="h-auto w-[200px]" />
       )}
     </div>
   );
