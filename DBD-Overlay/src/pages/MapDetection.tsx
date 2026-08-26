@@ -88,6 +88,9 @@ export default function MapDetection() {
 
       if (!workerRef.current) {
         workerRef.current = await createWorker("eng");
+        await workerRef.current.setParameters({
+          tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ",
+        });
       }
 
       const { data } = await workerRef.current.recognize(dataUrl);
@@ -126,7 +129,8 @@ export default function MapDetection() {
       </button>
       <p className="mb-6 text-xs text-[#888]">Or press Ctrl+O anytime, even while the game is focused.</p>
 
-      <div className="flex w-full max-w-[360px] flex-col gap-6 text-left">
+      <div className="flex w-full max-w-[820px] flex-col gap-6 text-left lg:flex-row lg:items-start">
+      <div className="flex w-full flex-col gap-6 lg:max-w-[360px]">
         <div>
           <p className="mb-2 text-sm font-medium">Capture window</p>
           <div className="flex gap-2">
@@ -226,7 +230,9 @@ export default function MapDetection() {
             onChange={(e) => updateSettings({ threshold: Number(e.currentTarget.value) / 100 })}
           />
         </label>
+      </div>
 
+      <div className="flex w-full flex-col gap-6 lg:max-w-[360px]">
         <div className="flex flex-col gap-2 rounded-xl bg-white p-4 text-left text-sm shadow-[0_2px_8px_rgba(0,0,0,0.1)] dark:bg-[#0f0f0f98]">
           <div>
             <span className="font-medium">Last OCR text: </span>
@@ -249,6 +255,7 @@ export default function MapDetection() {
             />
           </div>
         )}
+      </div>
       </div>
     </main>
   );

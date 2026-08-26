@@ -6,6 +6,49 @@ function normalize(s: string): string {
     .trim();
 }
 
+const ROMAN_NUMERALS: [number, string][] = [
+  [1000, "m"],
+  [900, "cm"],
+  [500, "d"],
+  [400, "cd"],
+  [100, "c"],
+  [90, "xc"],
+  [50, "l"],
+  [40, "xl"],
+  [10, "x"],
+  [9, "ix"],
+  [5, "v"],
+  [4, "iv"],
+  [1, "i"],
+];
+
+function toRoman(num: number): string {
+  let remaining = num;
+  let result = "";
+  for (const [value, numeral] of ROMAN_NUMERALS) {
+    while (remaining >= value) {
+      result += numeral;
+      remaining -= value;
+    }
+  }
+  return result;
+}
+
+// Map names often end in a trailing number (e.g. "preschool3"), but the
+// in-game text renders it as a roman numeral (e.g. "PRESCHOOL III"). Since
+// OCR is restricted to letters, digits never show up in the recognized
+// text, so candidate names need a roman-numeral form to match against.
+function normalizeWithRomanNumeral(s: string): string {
+  const match = s.match(/^(.*?)[\s_-]*([0-9]+)$/);
+  if (!match) return normalize(s);
+
+  const [, base, digits] = match;
+  const num = parseInt(digits, 10);
+  if (!num || num >= 4000) return normalize(s);
+
+  return normalize(`${base} ${toRoman(num)}`);
+}
+
 function levenshtein(a: string, b: string): number {
   const m = a.length;
   const n = b.length;
@@ -31,6 +74,14 @@ function similarity(a: string, b: string): number {
   return 1 - levenshtein(a, b) / maxLen;
 }
 
+// Plain substring checks let a short roman numeral swallow a longer one
+// (e.g. "preschool i" is a substring of "preschool iv"), so word boundaries
+// are required around the match.
+function containsWholeWord(haystack: string, needle: string): boolean {
+  if (!needle) return false;
+  return new RegExp(`\\b${needle}\\b`).test(haystack);
+}
+
 export function findBestMapMatch<T extends { name: string }>(
   ocrText: string,
   candidates: T[],
@@ -42,14 +93,19 @@ export function findBestMapMatch<T extends { name: string }>(
   let best: (T & { score: number }) | null = null;
 
   for (const candidate of candidates) {
-    const normalizedName = normalize(candidate.name);
-    if (!normalizedName) continue;
+    const nameForms = new Set(
+      [normalize(candidate.name), normalizeWithRomanNumeral(candidate.name)].filter(Boolean)
+    );
+    if (nameForms.size === 0) continue;
 
-    // OCR output often includes extra surrounding text (labels, HUD chrome),
-    // so a substring hit is treated as a perfect match alongside whole-string
-    // similarity, which instead tolerates OCR noise inside the name itself.
-    const substringScore = normalizedOcr.includes(normalizedName) ? 1 : 0;
-    const score = Math.max(similarity(normalizedOcr, normalizedName), substringScore);
+    let score = 0;
+    for (const normalizedName of nameForms) {
+      // OCR output often includes extra surrounding text (labels, HUD chrome),
+      // so a substring hit is treated as a perfect match alongside whole-string
+      // similarity, which instead tolerates OCR noise inside the name itself.
+      const substringScore = containsWholeWord(normalizedOcr, normalizedName) ? 1 : 0;
+      score = Math.max(score, similarity(normalizedOcr, normalizedName), substringScore);
+    }
 
     if (!best || score > best.score) {
       best = { ...candidate, score };

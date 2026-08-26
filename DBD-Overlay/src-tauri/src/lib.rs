@@ -130,8 +130,18 @@ fn capture_screen_region(
 
     let cropped = image::imageops::crop(&mut image, px, py, pw, ph).to_image();
 
+    // Map names render as solid light text over a translucent bar, but the
+    // game background behind/around it is busy and confuses the OCR engine
+    // into "reading" nonsense. Crushing the crop to grayscale then to pure
+    // black/white isolates the bright text and drops most of that noise.
+    let mut gray = image::DynamicImage::ImageRgba8(cropped).to_luma8();
+    const THRESHOLD: u8 = 170;
+    for pixel in gray.pixels_mut() {
+        pixel[0] = if pixel[0] >= THRESHOLD { 255 } else { 0 };
+    }
+
     let mut buf: Vec<u8> = Vec::new();
-    image::DynamicImage::ImageRgba8(cropped)
+    image::DynamicImage::ImageLuma8(gray)
         .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
         .map_err(|e| e.to_string())?;
 
