@@ -256,7 +256,11 @@ pub fn run() {
         .setup(|app| {
             images_dir(app.handle())?;
             create_overlay(app.handle())?;
-            app.global_shortcut().register("CommandOrControl+O")?;
+            // Ctrl+O is a systemwide hotkey, so a second running instance can't
+            // claim it - don't let that failure take down the whole instance.
+            if let Err(e) = app.global_shortcut().register("CommandOrControl+O") {
+                eprintln!("failed to register global shortcut (already running elsewhere?): {e}");
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
