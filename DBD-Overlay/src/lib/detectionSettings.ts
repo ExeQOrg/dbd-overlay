@@ -13,9 +13,9 @@ export interface DetectionSettings {
 }
 
 export const DEFAULT_DETECTION_SETTINGS: DetectionSettings = {
-  region: { x: 0.35, y: 0.05, width: 0.3, height: 0.08 },
+  region: { x: 0.25, y: 0.70, width: 0.5, height: 0.3 },
   threshold: 0.55,
-  windowTitle: "",
+  windowTitle: "DeadByDaylight (Dead By Daylight)",
   preferredCreator: "",
 };
 

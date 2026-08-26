@@ -22,6 +22,7 @@ export default function MapDetection() {
   const [scanning, setScanning] = useState(false);
   const [lastText, setLastText] = useState("");
   const [lastMatch, setLastMatch] = useState<string | null>(null);
+  const [scanDuration, setScanDuration] = useState<number | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [windows, setWindows] = useState<CapturableWindow[]>([]);
@@ -77,6 +78,7 @@ export default function MapDetection() {
     }
     setScanning(true);
     setError(null);
+    const startedAt = performance.now();
     try {
       const [freshImages, dataUrl] = await Promise.all([
         invoke<GalleryImage[]>("list_gallery_images"),
@@ -123,6 +125,7 @@ export default function MapDetection() {
     } catch (err) {
       setError(String(err));
     } finally {
+      setScanDuration(performance.now() - startedAt);
       setScanning(false);
     }
   }
@@ -277,6 +280,10 @@ export default function MapDetection() {
           </div>
           {error && <div className="text-[#c0392b]">{error}</div>}
         </div>
+
+        {scanDuration !== null && (
+          <p className="text-xs text-[#888]">Scan took {Math.round(scanDuration)} ms</p>
+        )}
 
         {preview && (
           <div className="flex flex-col items-center gap-2">
