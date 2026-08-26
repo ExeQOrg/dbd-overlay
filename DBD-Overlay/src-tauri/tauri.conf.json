@@ -21,7 +21,7 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/maps/**"]
+        "scope": ["$APPDATA/Maps/**"]
       }
     }
   },

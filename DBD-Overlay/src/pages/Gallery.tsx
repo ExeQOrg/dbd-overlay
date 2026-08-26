@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-
-interface GalleryImage {
-  name: string;
-  path: string;
-}
+import { GalleryImage } from "../lib/gallery";
 
 export default function Gallery() {
   const [search, setSearch] = useState("");
+  const [creatorFilter, setCreatorFilter] = useState("");
   const [images, setImages] = useState<GalleryImage[]>([]);
 
   const loadImages = () => {
@@ -19,9 +16,18 @@ export default function Gallery() {
     loadImages();
   }, []);
 
-  const filtered = images.filter((image) =>
-    image.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const creators = Array.from(new Set(images.map((image) => image.creator))).sort();
+
+  const filtered = images.filter((image) => {
+    const term = search.toLowerCase();
+    // Searching the family name (e.g. "Coldwind Farm") surfaces every map in
+    // that realm, even though each tile's displayed name is just its own
+    // filename ("Rotten Fields").
+    const matchesSearch =
+      image.name.toLowerCase().includes(term) || image.family.toLowerCase().includes(term);
+    const matchesCreator = !creatorFilter || image.creator === creatorFilter;
+    return matchesSearch && matchesCreator;
+  });
 
   async function sendImage(image: GalleryImage) {
     await emit("update-content", { imageUrl: convertFileSrc(image.path) });
@@ -31,7 +37,7 @@ export default function Gallery() {
     <main className="flex flex-col items-center px-8 pt-[10vh] text-center">
       <h1 className="mb-6 text-center">DBD Overlay Gallery</h1>
 
-      <div className="mb-6 flex w-full max-w-[320px] gap-2">
+      <div className="mb-6 flex w-full max-w-[480px] gap-2">
         <input
           className="w-full rounded-lg border border-transparent bg-white px-5 py-2.5 text-base font-medium text-[#0f0f0f] shadow-[0_2px_2px_rgba(0,0,0,0.2)] outline-none transition-colors duration-200 focus:border-[#396cd8] dark:bg-[#0f0f0f98] dark:text-white"
           type="text"
@@ -39,6 +45,18 @@ export default function Gallery() {
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
         />
+        <select
+          value={creatorFilter}
+          onChange={(e) => setCreatorFilter(e.currentTarget.value)}
+          className="shrink-0 rounded-lg border border-transparent bg-white px-3 py-2.5 text-sm font-medium text-[#0f0f0f] shadow-[0_2px_2px_rgba(0,0,0,0.2)] dark:bg-[#0f0f0f98] dark:text-white"
+        >
+          <option value="">All creators</option>
+          {creators.map((creator) => (
+            <option key={creator} value={creator}>
+              {creator}
+            </option>
+          ))}
+        </select>
         <button
           onClick={loadImages}
           className="shrink-0 rounded-lg bg-[#396cd8] px-4 py-2.5 text-base font-medium text-white shadow-[0_2px_2px_rgba(0,0,0,0.2)]"
@@ -65,7 +83,7 @@ export default function Gallery() {
         {filtered.length === 0 && (
           <p className="col-span-full mt-4 text-[#888]">
             {images.length === 0
-              ? "No images found. Add some to the app's data \"maps\" folder."
+              ? "No images found. Add some to the app's data \"Maps\" folder."
               : `No images match "${search}"`}
           </p>
         )}

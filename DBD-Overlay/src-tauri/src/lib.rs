@@ -14,48 +14,108 @@ fn greet(name: &str) -> String {
 #[derive(Serialize, Clone)]
 struct GalleryImage {
     name: String,
+    creator: String,
+    family: String,
     path: String,
 }
 
 const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 
 fn images_dir(app: &tauri::AppHandle) -> tauri::Result<std::path::PathBuf> {
-    let dir = app.path().app_data_dir()?.join("maps");
+    let dir = app.path().app_data_dir()?.join("Maps");
     fs::create_dir_all(&dir)?;
     Ok(dir)
 }
 
+fn is_image_file(path: &std::path::Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| IMAGE_EXTENSIONS.contains(&ext.to_lowercase().as_str()))
+        .unwrap_or(false)
+}
+
+fn file_stem_string(path: &std::path::Path) -> String {
+    path.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown")
+        .to_string()
+}
+
+// Directory names (creator/family) are used as-is, unlike file_stem_string,
+// so a folder like "M.T. Designs" doesn't get truncated at the first dot.
+fn dir_name_string(path: &std::path::Path) -> String {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown")
+        .to_string()
+}
+
+// Maps/<Creator>/<Family>/<MapName>.png - the family subfolder groups the
+// map variants that share a realm (e.g. "Coldwind Farm"), since the in-game
+// text shows both ("Coldwind Farm - Rotten Fields") but only the map name
+// itself is meaningful as a display name.
+fn collect_family_images(
+    dir: &std::path::Path,
+    creator: &str,
+    family: &str,
+    images: &mut Vec<GalleryImage>,
+) -> std::io::Result<()> {
+    for entry in fs::read_dir(dir)?.filter_map(|entry| entry.ok()) {
+        let path = entry.path();
+        if path.is_file() && is_image_file(&path) {
+            images.push(GalleryImage {
+                name: file_stem_string(&path),
+                creator: creator.to_string(),
+                family: family.to_string(),
+                path: path.to_string_lossy().to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn list_gallery_images(app: tauri::AppHandle) -> Result<Vec<GalleryImage>, String> {
-    let dir = images_dir(&app).map_err(|e| e.to_string())?;
+    let root = images_dir(&app).map_err(|e| e.to_string())?;
+    let mut images: Vec<GalleryImage> = Vec::new();
 
-    let mut images: Vec<GalleryImage> = fs::read_dir(&dir)
+    for creator_entry in fs::read_dir(&root)
         .map_err(|e| e.to_string())?
         .filter_map(|entry| entry.ok())
-        .filter(|entry| entry.path().is_file())
-        .filter(|entry| {
-            entry
-                .path()
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .map(|ext| IMAGE_EXTENSIONS.contains(&ext.to_lowercase().as_str()))
-                .unwrap_or(false)
-        })
-        .map(|entry| {
-            let path = entry.path();
-            let name = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("unknown")
-                .to_string();
-            GalleryImage {
-                name,
-                path: path.to_string_lossy().to_string(),
-            }
-        })
-        .collect();
+    {
+        let creator_path = creator_entry.path();
+        if !creator_path.is_dir() {
+            continue;
+        }
+        let creator = dir_name_string(&creator_path);
 
-    images.sort_by(|a, b| a.name.cmp(&b.name));
+        for sub_entry in fs::read_dir(&creator_path)
+            .map_err(|e| e.to_string())?
+            .filter_map(|entry| entry.ok())
+        {
+            let sub_path = sub_entry.path();
+            if sub_path.is_dir() {
+                let family = dir_name_string(&sub_path);
+                collect_family_images(&sub_path, &creator, &family, &mut images)
+                    .map_err(|e| e.to_string())?;
+            } else if is_image_file(&sub_path) {
+                // an image placed directly under the creator folder, with no family subfolder
+                images.push(GalleryImage {
+                    name: file_stem_string(&sub_path),
+                    creator: creator.clone(),
+                    family: String::new(),
+                    path: sub_path.to_string_lossy().to_string(),
+                });
+            }
+        }
+    }
+
+    images.sort_by(|a, b| {
+        a.creator
+            .cmp(&b.creator)
+            .then(a.family.cmp(&b.family))
+            .then(a.name.cmp(&b.name))
+    });
 
     Ok(images)
 }

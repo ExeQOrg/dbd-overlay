@@ -82,7 +82,7 @@ function containsWholeWord(haystack: string, needle: string): boolean {
   return new RegExp(`\\b${needle}\\b`).test(haystack);
 }
 
-export function findBestMapMatch<T extends { name: string }>(
+export function findBestMapMatch<T extends { name: string; family?: string }>(
   ocrText: string,
   candidates: T[],
   threshold: number
@@ -93,8 +93,20 @@ export function findBestMapMatch<T extends { name: string }>(
   let best: (T & { score: number }) | null = null;
 
   for (const candidate of candidates) {
+    // The in-game text shows "<Family> - <MapName>" (e.g. "Coldwind Farm -
+    // Rotten Fields"), but the whitelisted OCR charset has no hyphen, so the
+    // recognized text collapses to "coldwind farm rotten fields" with no
+    // delimiter. Matching against the family+name combo (in addition to the
+    // bare name) lets whole-string similarity use that extra context instead
+    // of relying solely on a substring hit.
+    const combined = candidate.family ? `${candidate.family} ${candidate.name}` : candidate.name;
     const nameForms = new Set(
-      [normalize(candidate.name), normalizeWithRomanNumeral(candidate.name)].filter(Boolean)
+      [
+        normalize(candidate.name),
+        normalizeWithRomanNumeral(candidate.name),
+        normalize(combined),
+        normalizeWithRomanNumeral(combined),
+      ].filter(Boolean)
     );
     if (nameForms.size === 0) continue;
 

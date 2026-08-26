@@ -10,11 +10,7 @@ import {
   saveDetectionSettings,
 } from "../lib/detectionSettings";
 import { findBestMapMatch } from "../lib/mapMatching";
-
-interface GalleryImage {
-  name: string;
-  path: string;
-}
+import { GalleryImage } from "../lib/gallery";
 
 interface CapturableWindow {
   title: string;
@@ -29,6 +25,7 @@ export default function MapDetection() {
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [windows, setWindows] = useState<CapturableWindow[]>([]);
+  const [images, setImages] = useState<GalleryImage[]>([]);
 
   const workerRef = useRef<Worker | null>(null);
   const lastSentRef = useRef<string | null>(null);
@@ -40,6 +37,7 @@ export default function MapDetection() {
 
   useEffect(() => {
     refreshWindows();
+    refreshGalleryImages();
 
     const unlisten = listen("trigger-scan", () => {
       scanNowRef.current();
@@ -54,6 +52,12 @@ export default function MapDetection() {
   function refreshWindows() {
     invoke<CapturableWindow[]>("list_capturable_windows").then(setWindows);
   }
+
+  function refreshGalleryImages() {
+    invoke<GalleryImage[]>("list_gallery_images").then(setImages);
+  }
+
+  const creators = Array.from(new Set(images.map((image) => image.creator))).filter(Boolean).sort();
 
   function updateSettings(patch: Partial<Omit<DetectionSettings, "region">> & { region?: Partial<DetectionRegion> }) {
     const next: DetectionSettings = {
@@ -74,7 +78,7 @@ export default function MapDetection() {
     setScanning(true);
     setError(null);
     try {
-      const [images, dataUrl] = await Promise.all([
+      const [freshImages, dataUrl] = await Promise.all([
         invoke<GalleryImage[]>("list_gallery_images"),
         invoke<string>("capture_screen_region", {
           x: settings.region.x,
@@ -84,6 +88,7 @@ export default function MapDetection() {
           windowTitle: settings.windowTitle,
         }),
       ]);
+      setImages(freshImages);
       setPreview(dataUrl);
 
       if (!workerRef.current) {
@@ -97,7 +102,15 @@ export default function MapDetection() {
       const text = data.text.trim();
       setLastText(text);
 
-      const match = findBestMapMatch(text, images, settings.threshold);
+      // Try the preferred creator's maps first so a shared map name doesn't
+      // get matched to someone else's version; fall back to the full set if
+      // that creator doesn't have a map for it.
+      const preferredImages = settings.preferredCreator
+        ? freshImages.filter((image) => image.creator === settings.preferredCreator)
+        : freshImages;
+      const match =
+        findBestMapMatch(text, preferredImages, settings.threshold) ??
+        (settings.preferredCreator ? findBestMapMatch(text, freshImages, settings.threshold) : null);
       if (match) {
         setLastMatch(match.name);
         if (lastSentRef.current !== match.path) {
@@ -155,6 +168,26 @@ export default function MapDetection() {
           </div>
           <p className="mt-2 text-xs text-[#888]">
             Only windows that are currently open are listed - launch the game, then hit Refresh.
+          </p>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-medium">Preferred creator</p>
+          <select
+            value={settings.preferredCreator}
+            onChange={(e) => updateSettings({ preferredCreator: e.currentTarget.value })}
+            className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm shadow-[0_2px_2px_rgba(0,0,0,0.2)] dark:bg-[#0f0f0f98] dark:text-white"
+          >
+            <option value="">Any creator</option>
+            {creators.map((creator) => (
+              <option key={creator} value={creator}>
+                {creator}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-[#888]">
+            When multiple creators have the same map, a match from this creator is used. If they
+            don't have it, any creator's version is used instead.
           </p>
         </div>
 
