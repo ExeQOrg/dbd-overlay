@@ -1,135 +1,22 @@
-import { useEffect, useRef, useState } from "react";
-import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-import { emit, listen } from "@tauri-apps/api/event";
-import { createWorker } from "tesseract.js";
-import type { Worker } from "tesseract.js";
-import {
-  DetectionRegion,
-  DetectionSettings,
-  loadDetectionSettings,
-  saveDetectionSettings,
-} from "../lib/detectionSettings";
-import { findBestMapMatch } from "../lib/mapMatching";
-import { GalleryImage } from "../lib/gallery";
-
-interface CapturableWindow {
-  title: string;
-  appName: string;
-}
+import { useDetection } from "../lib/DetectionContext";
 
 export default function MapDetection() {
-  const [settings, setSettings] = useState<DetectionSettings>(() => loadDetectionSettings());
-  const [scanning, setScanning] = useState(false);
-  const [lastText, setLastText] = useState("");
-  const [lastMatch, setLastMatch] = useState<string | null>(null);
-  const [scanDuration, setScanDuration] = useState<number | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [windows, setWindows] = useState<CapturableWindow[]>([]);
-  const [images, setImages] = useState<GalleryImage[]>([]);
-
-  const workerRef = useRef<Worker | null>(null);
-  const lastSentRef = useRef<string | null>(null);
-  const scanNowRef = useRef(scanNow);
-
-  useEffect(() => {
-    scanNowRef.current = scanNow;
-  });
-
-  useEffect(() => {
-    refreshWindows();
-    refreshGalleryImages();
-
-    const unlisten = listen("trigger-scan", () => {
-      scanNowRef.current();
-    });
-
-    return () => {
-      workerRef.current?.terminate();
-      unlisten.then((fn) => fn());
-    };
-  }, []);
-
-  function refreshWindows() {
-    invoke<CapturableWindow[]>("list_capturable_windows").then(setWindows);
-  }
-
-  function refreshGalleryImages() {
-    invoke<GalleryImage[]>("list_gallery_images").then(setImages);
-  }
+  const {
+    settings,
+    scanning,
+    lastText,
+    lastMatch,
+    scanDuration,
+    preview,
+    error,
+    windows,
+    images,
+    scanNow,
+    refreshWindows,
+    updateSettings,
+  } = useDetection();
 
   const creators = Array.from(new Set(images.map((image) => image.creator))).filter(Boolean).sort();
-
-  function updateSettings(patch: Partial<Omit<DetectionSettings, "region">> & { region?: Partial<DetectionRegion> }) {
-    const next: DetectionSettings = {
-      ...settings,
-      ...patch,
-      region: { ...settings.region, ...patch.region },
-    };
-    setSettings(next);
-    saveDetectionSettings(next);
-  }
-
-  async function scanNow() {
-    if (scanning) return;
-    if (!settings.windowTitle) {
-      setError("Pick a window to capture first.");
-      return;
-    }
-    setScanning(true);
-    setError(null);
-    const startedAt = performance.now();
-    try {
-      const [freshImages, dataUrl] = await Promise.all([
-        invoke<GalleryImage[]>("list_gallery_images"),
-        invoke<string>("capture_screen_region", {
-          x: settings.region.x,
-          y: settings.region.y,
-          width: settings.region.width,
-          height: settings.region.height,
-          windowTitle: settings.windowTitle,
-        }),
-      ]);
-      setImages(freshImages);
-      setPreview(dataUrl);
-
-      if (!workerRef.current) {
-        workerRef.current = await createWorker("eng");
-        await workerRef.current.setParameters({
-          tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ",
-        });
-      }
-
-      const { data } = await workerRef.current.recognize(dataUrl);
-      const text = data.text.trim();
-      setLastText(text);
-
-      // Try the preferred creator's maps first so a shared map name doesn't
-      // get matched to someone else's version; fall back to the full set if
-      // that creator doesn't have a map for it.
-      const preferredImages = settings.preferredCreator
-        ? freshImages.filter((image) => image.creator === settings.preferredCreator)
-        : freshImages;
-      const match =
-        findBestMapMatch(text, preferredImages, settings.threshold) ??
-        (settings.preferredCreator ? findBestMapMatch(text, freshImages, settings.threshold) : null);
-      if (match) {
-        setLastMatch(match.name);
-        if (lastSentRef.current !== match.path) {
-          lastSentRef.current = match.path;
-          await emit("update-content", { imageUrl: convertFileSrc(match.path) });
-        }
-      } else {
-        setLastMatch(null);
-      }
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setScanDuration(performance.now() - startedAt);
-      setScanning(false);
-    }
-  }
-
   const region = settings.region;
 
   return (
@@ -265,6 +152,26 @@ export default function MapDetection() {
             value={Math.round(settings.threshold * 100)}
             onChange={(e) => updateSettings({ threshold: Number(e.currentTarget.value) / 100 })}
           />
+        </label>
+
+        <label className="flex flex-col gap-2">
+          <span className="flex justify-between text-sm font-medium">
+            <span>Brightness threshold</span>
+            <span>{settings.brightnessThreshold}</span>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={255}
+            step={1}
+            value={settings.brightnessThreshold}
+            onChange={(e) => updateSettings({ brightnessThreshold: Number(e.currentTarget.value) })}
+          />
+          <p className="text-xs text-[#888]">
+            Pixels brighter than this are kept as text, everything else is dropped to isolate the
+            map name from the background. Lower it if scans miss text on a dim screen/HDR setup,
+            raise it if the background is being picked up as text.
+          </p>
         </label>
       </div>
 

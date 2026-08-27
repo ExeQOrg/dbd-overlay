@@ -10,6 +10,7 @@ export interface DetectionSettings {
   threshold: number;
   windowTitle: string;
   preferredCreator: string;
+  brightnessThreshold: number;
 }
 
 export const DEFAULT_DETECTION_SETTINGS: DetectionSettings = {
@@ -17,6 +18,7 @@ export const DEFAULT_DETECTION_SETTINGS: DetectionSettings = {
   threshold: 0.55,
   windowTitle: "DeadByDaylight (Dead By Daylight)",
   preferredCreator: "",
+  brightnessThreshold: 120,
 };
 
 const STORAGE_KEY = "map-detection-settings";

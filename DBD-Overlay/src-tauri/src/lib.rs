@@ -165,6 +165,7 @@ fn capture_screen_region(
     width: f64,
     height: f64,
     window_title: String,
+    brightness_threshold: u8,
 ) -> Result<String, String> {
     let windows = Window::all().map_err(|e| e.to_string())?;
     let window = windows
@@ -195,9 +196,8 @@ fn capture_screen_region(
     // into "reading" nonsense. Crushing the crop to grayscale then to pure
     // black/white isolates the bright text and drops most of that noise.
     let mut gray = image::DynamicImage::ImageRgba8(cropped).to_luma8();
-    const THRESHOLD: u8 = 170;
     for pixel in gray.pixels_mut() {
-        pixel[0] = if pixel[0] >= THRESHOLD { 255 } else { 0 };
+        pixel[0] = if pixel[0] >= brightness_threshold { 255 } else { 0 };
     }
 
     let mut buf: Vec<u8> = Vec::new();
