@@ -1,8 +1,8 @@
 import { useDetection } from "../lib/DetectionContext";
-import { getCreators } from "../lib/gallery";
-import { pageClass, fieldClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/styles";
+import { getCreators } from "../lib/Gallery";
+import { pageClass, fieldClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
 
-export default function MapDetection() {
+export default function MapDetectionPage() {
   const {
     settings,
     scanning,

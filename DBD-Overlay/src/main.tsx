@@ -1,13 +1,15 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import MainLayout from "./layout/MainLayout";
-import Gallery from "./pages/Gallery";
-import OverlayControls from "./pages/OverlayControls";
-import MapDetection from "./pages/MapDetection";
-import Settings from "./pages/Settings";
+
 import Overlay from "./Overlay";
+import MainLayout from "./layout/MainLayout";
+import GalleryPage from "./pages/GalleryPage";
+import OverlayPage from "./pages/OverlayPage";
+import MapDetectionPage from "./pages/MapDetectionPage";
+import GlobalSettingsPage from "./pages/GlobalSettingsPage";
 import { DetectionProvider } from "./lib/DetectionContext";
+
 import "./App.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -24,10 +26,10 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           }
         >
           <Route path="/" element={<Navigate to="/gallery" replace />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/controls" element={<OverlayControls />} />
-          <Route path="/detect" element={<MapDetection />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/controls" element={<OverlayPage />} />
+          <Route path="/detect" element={<MapDetectionPage />} />
+          <Route path="/settings" element={<GlobalSettingsPage />} />
         </Route>
       </Routes>
     </HashRouter>

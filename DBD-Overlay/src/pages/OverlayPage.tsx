@@ -8,8 +8,8 @@ import {
   loadOverlaySettings,
   saveOverlaySettings,
   OverlaySettings,
-} from "../lib/overlaySettings";
-import { pageClass, fieldClass, buttonClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/styles";
+} from "../lib/OverlaySettings";
+import { pageClass, fieldClass, buttonClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
 
 const anchorOptions: { value: Anchor; label: string }[] = [
   { value: "top-left", label: "Top Left" },
@@ -18,7 +18,7 @@ const anchorOptions: { value: Anchor; label: string }[] = [
   { value: "bottom-right", label: "Bottom Right" },
 ];
 
-export default function OverlayControls() {
+export default function OverlayPage() {
   const [visible, setVisible] = useState(true);
   const [settings, setSettings] = useState<OverlaySettings>(() => loadOverlaySettings());
 

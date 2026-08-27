@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-import { GalleryImage, getCreators } from "../lib/gallery";
-import { pageClass } from "../lib/styles";
 
-export default function Gallery() {
+import { GalleryImage, getCreators } from "../lib/Gallery";
+import { pageClass } from "../lib/Styles";
+
+export default function GalleryPage() {
   const [search, setSearch] = useState("");
   const [creatorFilter, setCreatorFilter] = useState("");
   const [images, setImages] = useState<GalleryImage[]>([]);

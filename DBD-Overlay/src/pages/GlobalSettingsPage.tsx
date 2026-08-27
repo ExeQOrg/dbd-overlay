@@ -1,4 +1,4 @@
-export default function Settings() {
+export default function GlobalSettings() {
   return (
     <main className="flex flex-col items-center px-8 pt-[10vh] text-center">
       <h1 className="mb-6 text-center">Settings</h1>

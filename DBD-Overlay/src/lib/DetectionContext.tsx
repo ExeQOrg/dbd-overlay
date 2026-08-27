@@ -8,9 +8,9 @@ import {
   DetectionSettings,
   loadDetectionSettings,
   saveDetectionSettings,
-} from "./detectionSettings";
-import { findBestMapMatch } from "./mapMatching";
-import { GalleryImage } from "./gallery";
+} from "./DetectionSettings";
+import { findBestMapMatch } from "./MapMatching";
+import { GalleryImage } from "./Gallery";
 
 interface CapturableWindow {
   title: string;
