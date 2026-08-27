@@ -768,7 +768,6 @@ dependencies = [
  "base64 0.22.1",
  "image",
  "serde",
- "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-global-shortcut",

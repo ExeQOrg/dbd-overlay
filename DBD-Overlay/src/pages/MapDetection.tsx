@@ -1,4 +1,6 @@
 import { useDetection } from "../lib/DetectionContext";
+import { getCreators } from "../lib/gallery";
+import { pageClass, fieldClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/styles";
 
 export default function MapDetection() {
   const {
@@ -16,17 +18,17 @@ export default function MapDetection() {
     updateSettings,
   } = useDetection();
 
-  const creators = Array.from(new Set(images.map((image) => image.creator))).filter(Boolean).sort();
+  const creators = getCreators(images);
   const region = settings.region;
 
   return (
-    <main className="flex flex-col items-center px-8 pt-[10vh] text-center">
+    <main className={pageClass}>
       <h1 className="mb-6 text-center">Map Detection</h1>
 
       <button
         onClick={scanNow}
         disabled={scanning}
-        className="mb-2 rounded-lg bg-[#396cd8] px-5 py-2.5 text-base font-medium text-white shadow-[0_2px_2px_rgba(0,0,0,0.2)] disabled:opacity-60"
+        className={`mb-2 ${primaryButtonClass} disabled:opacity-60`}
       >
         {scanning ? "Scanning…" : "Scan Now"}
       </button>
@@ -40,7 +42,7 @@ export default function MapDetection() {
             <select
               value={settings.windowTitle}
               onChange={(e) => updateSettings({ windowTitle: e.currentTarget.value })}
-              className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm shadow-[0_2px_2px_rgba(0,0,0,0.2)] dark:bg-[#0f0f0f98] dark:text-white"
+              className={`w-full ${fieldClass}`}
             >
               <option value="">Select a window…</option>
               {windows.map((w) => (
@@ -66,7 +68,7 @@ export default function MapDetection() {
           <select
             value={settings.preferredCreator}
             onChange={(e) => updateSettings({ preferredCreator: e.currentTarget.value })}
-            className="w-full rounded-lg border border-transparent bg-white px-3 py-2 text-sm shadow-[0_2px_2px_rgba(0,0,0,0.2)] dark:bg-[#0f0f0f98] dark:text-white"
+            className={`w-full ${fieldClass}`}
           >
             <option value="">Any creator</option>
             {creators.map((creator) => (
@@ -92,7 +94,7 @@ export default function MapDetection() {
                 max={100}
                 value={Math.round(region.x * 100)}
                 onChange={(e) => updateSettings({ region: { x: Number(e.currentTarget.value) / 100 } })}
-                className="rounded-lg border border-transparent bg-white px-3 py-2 text-sm shadow-[0_2px_2px_rgba(0,0,0,0.2)] dark:bg-[#0f0f0f98] dark:text-white"
+                className={fieldClass}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
@@ -103,7 +105,7 @@ export default function MapDetection() {
                 max={100}
                 value={Math.round(region.y * 100)}
                 onChange={(e) => updateSettings({ region: { y: Number(e.currentTarget.value) / 100 } })}
-                className="rounded-lg border border-transparent bg-white px-3 py-2 text-sm shadow-[0_2px_2px_rgba(0,0,0,0.2)] dark:bg-[#0f0f0f98] dark:text-white"
+                className={fieldClass}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
@@ -116,7 +118,7 @@ export default function MapDetection() {
                 onChange={(e) =>
                   updateSettings({ region: { width: Number(e.currentTarget.value) / 100 } })
                 }
-                className="rounded-lg border border-transparent bg-white px-3 py-2 text-sm shadow-[0_2px_2px_rgba(0,0,0,0.2)] dark:bg-[#0f0f0f98] dark:text-white"
+                className={fieldClass}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
@@ -129,7 +131,7 @@ export default function MapDetection() {
                 onChange={(e) =>
                   updateSettings({ region: { height: Number(e.currentTarget.value) / 100 } })
                 }
-                className="rounded-lg border border-transparent bg-white px-3 py-2 text-sm shadow-[0_2px_2px_rgba(0,0,0,0.2)] dark:bg-[#0f0f0f98] dark:text-white"
+                className={fieldClass}
               />
             </label>
           </div>
@@ -139,8 +141,8 @@ export default function MapDetection() {
           </p>
         </div>
 
-        <label className="flex flex-col gap-2">
-          <span className="flex justify-between text-sm font-medium">
+        <label className={sliderLabelClass}>
+          <span className={sliderHeaderClass}>
             <span>Match threshold</span>
             <span>{Math.round(settings.threshold * 100)}%</span>
           </span>
@@ -154,8 +156,8 @@ export default function MapDetection() {
           />
         </label>
 
-        <label className="flex flex-col gap-2">
-          <span className="flex justify-between text-sm font-medium">
+        <label className={sliderLabelClass}>
+          <span className={sliderHeaderClass}>
             <span>Brightness threshold</span>
             <span>{settings.brightnessThreshold}</span>
           </span>

@@ -9,6 +9,7 @@ import {
   saveOverlaySettings,
   OverlaySettings,
 } from "../lib/overlaySettings";
+import { pageClass, fieldClass, buttonClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/styles";
 
 const anchorOptions: { value: Anchor; label: string }[] = [
   { value: "top-left", label: "Top Left" },
@@ -53,33 +54,24 @@ export default function OverlayControls() {
   }
 
   return (
-    <main className="flex flex-col items-center px-8 pt-[10vh] text-center">
+    <main className={pageClass}>
       <h1 className="mb-6 text-center">Overlay Controls</h1>
 
       <div className="flex flex-col gap-4">
-        <button
-          onClick={toggleVisible}
-          className="rounded-lg bg-[#396cd8] px-5 py-2.5 text-base font-medium text-white shadow-[0_2px_2px_rgba(0,0,0,0.2)]"
-        >
+        <button onClick={toggleVisible} className={primaryButtonClass}>
           {visible ? "Hide Overlay" : "Show Overlay"}
         </button>
-        <button
-          onClick={clearOverlay}
-          className="rounded-lg bg-[#888] px-5 py-2.5 text-base font-medium text-white shadow-[0_2px_2px_rgba(0,0,0,0.2)]"
-        >
+        <button onClick={clearOverlay} className={`${buttonClass} bg-[#888]`}>
           Clear Overlay Content
         </button>
-        <button
-          onClick={openPopout}
-          className="rounded-lg bg-[#2e8b57] px-5 py-2.5 text-base font-medium text-white shadow-[0_2px_2px_rgba(0,0,0,0.2)]"
-        >
+        <button onClick={openPopout} className={`${buttonClass} bg-[#2e8b57]`}>
           Popout OBS Overlay
         </button>
       </div>
 
       <div className="mt-8 flex w-full max-w-[320px] flex-col gap-6 text-left">
-        <label className="flex flex-col gap-2">
-          <span className="flex justify-between text-sm font-medium">
+        <label className={sliderLabelClass}>
+          <span className={sliderHeaderClass}>
             <span>Image size</span>
             <span>{settings.size}px</span>
           </span>
@@ -93,8 +85,8 @@ export default function OverlayControls() {
           />
         </label>
 
-        <label className="flex flex-col gap-2">
-          <span className="flex justify-between text-sm font-medium">
+        <label className={sliderLabelClass}>
+          <span className={sliderHeaderClass}>
             <span>Opacity</span>
             <span>{Math.round(settings.opacity * 100)}%</span>
           </span>
@@ -113,7 +105,7 @@ export default function OverlayControls() {
           <select
             value={settings.anchor}
             onChange={(e) => updateSettings({ anchor: e.currentTarget.value as Anchor })}
-            className="rounded-lg border border-transparent bg-white px-3 py-2 text-sm shadow-[0_2px_2px_rgba(0,0,0,0.2)] dark:bg-[#0f0f0f98] dark:text-white"
+            className={fieldClass}
           >
             {anchorOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>

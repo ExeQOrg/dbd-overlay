@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-import { GalleryImage } from "../lib/gallery";
+import { GalleryImage, getCreators } from "../lib/gallery";
+import { pageClass } from "../lib/styles";
 
 export default function Gallery() {
   const [search, setSearch] = useState("");
@@ -16,7 +17,7 @@ export default function Gallery() {
     loadImages();
   }, []);
 
-  const creators = Array.from(new Set(images.map((image) => image.creator))).sort();
+  const creators = getCreators(images);
 
   const filtered = images.filter((image) => {
     const term = search.toLowerCase();
@@ -34,7 +35,7 @@ export default function Gallery() {
   }
 
   return (
-    <main className="flex flex-col items-center px-8 pt-[10vh] text-center">
+    <main className={pageClass}>
       <h1 className="mb-6 text-center">DBD Overlay Gallery</h1>
 
       <div className="mb-6 flex w-full max-w-[480px] gap-2">
