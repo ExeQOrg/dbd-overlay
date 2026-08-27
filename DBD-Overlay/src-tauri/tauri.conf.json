@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "dbd-overlay",
+  "productName": "DBD Toolbox",
   "version": "0.1.0",
-  "identifier": "com.exeqorg.dbd-overlay",
+  "identifier": "com.exeqorg.dbd-toolbox",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "dbd-overlay",
+        "title": "DBD Toolbox",
         "width": 1280,
         "height": 720
       }

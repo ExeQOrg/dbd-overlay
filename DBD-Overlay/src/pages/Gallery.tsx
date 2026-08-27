@@ -36,7 +36,7 @@ export default function Gallery() {
 
   return (
     <main className={pageClass}>
-      <h1 className="mb-6 text-center">DBD Overlay Gallery</h1>
+      <h1 className="mb-6 text-center">DBD Toolbox Gallery</h1>
 
       <div className="mb-6 flex w-full max-w-[480px] gap-2">
         <input

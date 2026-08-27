@@ -123,7 +123,7 @@ struct CapturableWindow {
 
 // Titles xcap would otherwise report for this app's own windows - excluded
 // so the picker only ever lists other running programs.
-const OWN_WINDOW_TITLES: [&str; 2] = ["dbd-overlay", "Overlay"];
+const OWN_WINDOW_TITLES: [&str; 2] = ["DBD Toolbox", "Overlay"];
 
 #[tauri::command]
 fn list_capturable_windows() -> Result<Vec<CapturableWindow>, String> {
