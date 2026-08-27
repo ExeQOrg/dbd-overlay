@@ -14,7 +14,11 @@ const anchorClasses: Record<OverlaySettings["anchor"], string> = {
   "bottom-right": "bottom-0 right-0",
 };
 
-export default function Overlay() {
+interface OverlayProps {
+  chromaKey?: boolean;
+}
+
+export default function Overlay({ chromaKey = false }: OverlayProps) {
   const [content, setContent] = useState<OverlayContent>({});
   const [settings, setSettings] = useState<OverlaySettings>(() => loadOverlaySettings());
 
@@ -32,7 +36,10 @@ export default function Overlay() {
   }, []);
 
   return (
-    <div className="pointer-events-none relative h-screen w-screen overflow-hidden">
+    <div
+      className="pointer-events-none relative h-screen w-screen overflow-hidden"
+      style={chromaKey ? { backgroundColor: "#00ff00" } : undefined}
+    >
       {content.text && (
         <p className={`absolute text-2xl text-white ${anchorClasses[settings.anchor]}`}>
           {content.text}
@@ -43,7 +50,7 @@ export default function Overlay() {
           src={content.imageUrl}
           alt=""
           className={`absolute h-auto ${anchorClasses[settings.anchor]}`}
-          style={{ width: settings.size, opacity: settings.opacity }}
+          style={{ width: settings.size, opacity: chromaKey ? 1 : settings.opacity }}
         />
       )}
     </div>

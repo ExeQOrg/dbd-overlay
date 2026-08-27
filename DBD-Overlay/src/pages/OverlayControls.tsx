@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   Anchor,
@@ -47,6 +48,10 @@ export default function OverlayControls() {
     await emit("update-content", {});
   }
 
+  async function openPopout() {
+    await invoke("open_obs_popout");
+  }
+
   return (
     <main className="flex flex-col items-center px-8 pt-[10vh] text-center">
       <h1 className="mb-6 text-center">Overlay Controls</h1>
@@ -63,6 +68,12 @@ export default function OverlayControls() {
           className="rounded-lg bg-[#888] px-5 py-2.5 text-base font-medium text-white shadow-[0_2px_2px_rgba(0,0,0,0.2)]"
         >
           Clear Overlay Content
+        </button>
+        <button
+          onClick={openPopout}
+          className="rounded-lg bg-[#2e8b57] px-5 py-2.5 text-base font-medium text-white shadow-[0_2px_2px_rgba(0,0,0,0.2)]"
+        >
+          Popout OBS Overlay
         </button>
       </div>
 

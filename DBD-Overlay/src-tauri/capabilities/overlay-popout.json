@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "overlay-popout",
+  "description": "Capability for the OBS popout overlay window",
+  "windows": ["overlay-popout"],
+  "permissions": ["core:event:default"]
+}

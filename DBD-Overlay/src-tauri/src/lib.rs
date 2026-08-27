@@ -208,6 +208,26 @@ fn capture_screen_region(
     Ok(format!("data:image/png;base64,{}", BASE64.encode(&buf)))
 }
 
+#[tauri::command]
+async fn open_obs_popout(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("overlay-popout") {
+        return window.set_focus().map_err(|e| e.to_string());
+    }
+
+    WebviewWindowBuilder::new(
+        &app,
+        "overlay-popout",
+        WebviewUrl::App("index.html#/overlay-popout".into()),
+    )
+    .title("OBS Overlay")
+    .resizable(true)
+    .inner_size(1280.0, 720.0)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 fn create_overlay(app: &tauri::AppHandle) -> tauri::Result<()> {
     let monitor = app
         .primary_monitor()?
@@ -251,7 +271,8 @@ pub fn run() {
             greet,
             list_gallery_images,
             list_capturable_windows,
-            capture_screen_region
+            capture_screen_region,
+            open_obs_popout
         ])
         .setup(|app| {
             images_dir(app.handle())?;
@@ -268,6 +289,9 @@ pub fn run() {
                 if let WindowEvent::CloseRequested { .. } = event {
                     if let Some(overlay) = window.app_handle().get_webview_window("overlay") {
                         let _ = overlay.close();
+                    }
+                    if let Some(popout) = window.app_handle().get_webview_window("overlay-popout") {
+                        let _ = popout.close();
                     }
                 }
             }

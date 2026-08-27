@@ -15,6 +15,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <HashRouter>
       <Routes>
         <Route path="/overlay" element={<Overlay />} />
+        <Route path="/overlay-popout" element={<Overlay chromaKey />} />
         <Route
           element={
             <DetectionProvider>
