@@ -63,13 +63,17 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     refreshWindows();
     refreshGalleryImages();
 
-    const unlisten = listen("trigger-scan", () => {
+    const unlistenScan = listen("trigger-scan", () => {
       scanNow();
+    });
+    const unlistenMaps = listen("maps-updated", () => {
+      refreshGalleryImages();
     });
 
     return () => {
       workerRef.current?.terminate();
-      unlisten.then((fn) => fn());
+      unlistenScan.then((fn) => fn());
+      unlistenMaps.then((fn) => fn());
     };
   }, []);
 

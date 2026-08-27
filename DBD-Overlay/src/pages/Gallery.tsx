@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { emit } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { GalleryImage, getCreators } from "../lib/gallery";
 import { pageClass } from "../lib/styles";
@@ -15,6 +15,10 @@ export default function Gallery() {
 
   useEffect(() => {
     loadImages();
+    const unlisten = listen("maps-updated", loadImages);
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   const creators = getCreators(images);
