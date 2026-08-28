@@ -1,5 +1,4 @@
 import { useDetection } from "../lib/DetectionContext";
-import { getCreators } from "../lib/Gallery";
 import { DEFAULT_DETECTION_SETTINGS } from "../lib/DetectionSettings";
 import { pageClass, fieldClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
 import ResetButton from "../components/ResetButton";
@@ -14,13 +13,11 @@ export default function MapDetectionPage() {
     preview,
     error,
     windows,
-    images,
     scanNow,
     refreshWindows,
     updateSettings,
   } = useDetection();
 
-  const creators = getCreators(images);
   const region = settings.region;
 
   // Mirrors the case-insensitive substring match capture_screen_region uses,
@@ -80,32 +77,6 @@ export default function MapDetectionPage() {
           <p className="mt-2 text-xs text-[#888]">
             Detection matches this automatically once the game is running - you only need to
             change it here if the wrong window gets picked up.
-          </p>
-        </div>
-
-        <div>
-          <p className="mb-2 flex items-center justify-between text-sm font-medium">
-            <span>Preferred creator</span>
-            <ResetButton
-              onClick={() => updateSettings({ preferredCreator: DEFAULT_DETECTION_SETTINGS.preferredCreator })}
-              disabled={settings.preferredCreator === DEFAULT_DETECTION_SETTINGS.preferredCreator}
-            />
-          </p>
-          <select
-            value={settings.preferredCreator}
-            onChange={(e) => updateSettings({ preferredCreator: e.currentTarget.value })}
-            className={`w-full ${fieldClass}`}
-          >
-            <option value="">Any creator</option>
-            {creators.map((creator) => (
-              <option key={creator} value={creator}>
-                {creator}
-              </option>
-            ))}
-          </select>
-          <p className="mt-2 text-xs text-[#888]">
-            When multiple creators have the same map, a match from this creator is used. If they
-            don't have it, any creator's version is used instead.
           </p>
         </div>
 

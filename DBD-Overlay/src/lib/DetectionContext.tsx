@@ -9,6 +9,7 @@ import {
   loadDetectionSettings,
   saveDetectionSettings,
 } from "./DetectionSettings";
+import { loadGlobalSettings } from "./GlobalSettings";
 import { findBestMapMatch } from "./MapMatching";
 import { GalleryImage } from "./Gallery";
 
@@ -134,12 +135,13 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       // Try the preferred creator's maps first so a shared map name doesn't
       // get matched to someone else's version; fall back to the full set if
       // that creator doesn't have a map for it.
-      const preferredImages = currentSettings.preferredCreator
-        ? freshImages.filter((image) => image.creator === currentSettings.preferredCreator)
+      const preferredCreator = loadGlobalSettings().preferredCreator;
+      const preferredImages = preferredCreator
+        ? freshImages.filter((image) => image.creator === preferredCreator)
         : freshImages;
       const match =
         findBestMapMatch(text, preferredImages, currentSettings.threshold) ??
-        (currentSettings.preferredCreator ? findBestMapMatch(text, freshImages, currentSettings.threshold) : null);
+        (preferredCreator ? findBestMapMatch(text, freshImages, currentSettings.threshold) : null);
       if (match) {
         setLastMatch(match.name);
         if (lastSentRef.current !== match.path) {

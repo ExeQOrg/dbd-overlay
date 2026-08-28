@@ -3,11 +3,12 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 
 import { GalleryImage, getCreators } from "../lib/Gallery";
+import { loadGlobalSettings } from "../lib/GlobalSettings";
 import { pageClass } from "../lib/Styles";
 
 export default function GalleryPage() {
   const [search, setSearch] = useState("");
-  const [creatorFilter, setCreatorFilter] = useState("");
+  const [creatorFilter, setCreatorFilter] = useState(() => loadGlobalSettings().preferredCreator);
   const [images, setImages] = useState<GalleryImage[]>([]);
 
   const loadImages = () => {
