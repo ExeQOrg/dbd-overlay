@@ -1,6 +1,8 @@
 import { useDetection } from "../lib/DetectionContext";
 import { getCreators } from "../lib/Gallery";
+import { DEFAULT_DETECTION_SETTINGS } from "../lib/DetectionSettings";
 import { pageClass, fieldClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
+import ResetButton from "../components/ResetButton";
 
 export default function MapDetectionPage() {
   const {
@@ -21,6 +23,14 @@ export default function MapDetectionPage() {
   const creators = getCreators(images);
   const region = settings.region;
 
+  // Mirrors the case-insensitive substring match capture_screen_region uses,
+  // so the picker shows the live window that's actually being captured
+  // rather than requiring its title to equal the saved pattern verbatim.
+  const matchedWindow = windows.find((w) =>
+    w.title.toLowerCase().includes(settings.windowTitle.toLowerCase())
+  );
+  const windowSelectValue = matchedWindow ? matchedWindow.title : settings.windowTitle;
+
   return (
     <main className={pageClass}>
       <h1 className="mb-6 text-center">Map Detection</h1>
@@ -37,14 +47,23 @@ export default function MapDetectionPage() {
       <div className="flex w-full max-w-[820px] flex-col gap-6 text-left lg:flex-row lg:items-start">
       <div className="flex w-full flex-col gap-6 lg:max-w-[360px]">
         <div>
-          <p className="mb-2 text-sm font-medium">Capture window</p>
+          <p className="mb-2 flex items-center justify-between text-sm font-medium">
+            <span>Capture window</span>
+            <ResetButton
+              onClick={() => updateSettings({ windowTitle: DEFAULT_DETECTION_SETTINGS.windowTitle })}
+              disabled={settings.windowTitle === DEFAULT_DETECTION_SETTINGS.windowTitle}
+            />
+          </p>
           <div className="flex gap-2">
             <select
-              value={settings.windowTitle}
+              value={windowSelectValue}
               onChange={(e) => updateSettings({ windowTitle: e.currentTarget.value })}
               className={`w-full ${fieldClass}`}
             >
               <option value="">Select a window…</option>
+              {settings.windowTitle && !matchedWindow && (
+                <option value={settings.windowTitle}>{settings.windowTitle} (not running)</option>
+              )}
               {windows.map((w) => (
                 <option key={w.title} value={w.title}>
                   {w.title} ({w.appName})
@@ -59,12 +78,19 @@ export default function MapDetectionPage() {
             </button>
           </div>
           <p className="mt-2 text-xs text-[#888]">
-            Only windows that are currently open are listed - launch the game, then hit Refresh.
+            Detection matches this automatically once the game is running - you only need to
+            change it here if the wrong window gets picked up.
           </p>
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-medium">Preferred creator</p>
+          <p className="mb-2 flex items-center justify-between text-sm font-medium">
+            <span>Preferred creator</span>
+            <ResetButton
+              onClick={() => updateSettings({ preferredCreator: DEFAULT_DETECTION_SETTINGS.preferredCreator })}
+              disabled={settings.preferredCreator === DEFAULT_DETECTION_SETTINGS.preferredCreator}
+            />
+          </p>
           <select
             value={settings.preferredCreator}
             onChange={(e) => updateSettings({ preferredCreator: e.currentTarget.value })}
@@ -84,7 +110,18 @@ export default function MapDetectionPage() {
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-medium">Scan region (% of window)</p>
+          <p className="mb-2 flex items-center justify-between text-sm font-medium">
+            <span>Scan region (% of window)</span>
+            <ResetButton
+              onClick={() => updateSettings({ region: DEFAULT_DETECTION_SETTINGS.region })}
+              disabled={
+                region.x === DEFAULT_DETECTION_SETTINGS.region.x &&
+                region.y === DEFAULT_DETECTION_SETTINGS.region.y &&
+                region.width === DEFAULT_DETECTION_SETTINGS.region.width &&
+                region.height === DEFAULT_DETECTION_SETTINGS.region.height
+              }
+            />
+          </p>
           <div className="grid grid-cols-2 gap-4">
             <label className="flex flex-col gap-1 text-sm">
               X
@@ -144,7 +181,13 @@ export default function MapDetectionPage() {
         <label className={sliderLabelClass}>
           <span className={sliderHeaderClass}>
             <span>Match threshold</span>
-            <span>{Math.round(settings.threshold * 100)}%</span>
+            <span className="flex items-center gap-2">
+              {Math.round(settings.threshold * 100)}%
+              <ResetButton
+                onClick={() => updateSettings({ threshold: DEFAULT_DETECTION_SETTINGS.threshold })}
+                disabled={settings.threshold === DEFAULT_DETECTION_SETTINGS.threshold}
+              />
+            </span>
           </span>
           <input
             type="range"
@@ -159,7 +202,15 @@ export default function MapDetectionPage() {
         <label className={sliderLabelClass}>
           <span className={sliderHeaderClass}>
             <span>Brightness threshold</span>
-            <span>{settings.brightnessThreshold}</span>
+            <span className="flex items-center gap-2">
+              {settings.brightnessThreshold}
+              <ResetButton
+                onClick={() =>
+                  updateSettings({ brightnessThreshold: DEFAULT_DETECTION_SETTINGS.brightnessThreshold })
+                }
+                disabled={settings.brightnessThreshold === DEFAULT_DETECTION_SETTINGS.brightnessThreshold}
+              />
+            </span>
           </span>
           <input
             type="range"

@@ -10,3 +10,6 @@ export const primaryButtonClass = `${buttonClass} bg-[#396cd8]`;
 
 export const sliderLabelClass = "flex flex-col gap-2";
 export const sliderHeaderClass = "flex justify-between text-sm font-medium";
+
+export const resetButtonClass =
+  "text-xs font-normal text-[#396cd8] hover:underline disabled:pointer-events-none disabled:opacity-40";

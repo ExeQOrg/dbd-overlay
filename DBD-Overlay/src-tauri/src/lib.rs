@@ -351,9 +351,10 @@ fn capture_screen_region(
     brightness_threshold: u8,
 ) -> Result<String, String> {
     let windows = Window::all().map_err(|e| e.to_string())?;
+    let needle = window_title.to_lowercase();
     let window = windows
         .into_iter()
-        .find(|w| w.title().map(|t| t == window_title).unwrap_or(false))
+        .find(|w| w.title().map(|t| t.to_lowercase().contains(&needle)).unwrap_or(false))
         .ok_or_else(|| format!("Window \"{}\" not found - is the game running?", window_title))?;
 
     let mut image = window

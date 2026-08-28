@@ -10,6 +10,7 @@ import {
   OverlaySettings,
 } from "../lib/OverlaySettings";
 import { pageClass, fieldClass, buttonClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
+import ResetButton from "../components/ResetButton";
 
 const anchorOptions: { value: Anchor; label: string }[] = [
   { value: "top-left", label: "Top Left" },
@@ -73,7 +74,13 @@ export default function OverlayPage() {
         <label className={sliderLabelClass}>
           <span className={sliderHeaderClass}>
             <span>Image size</span>
-            <span>{settings.size}px</span>
+            <span className="flex items-center gap-2">
+              {settings.size}px
+              <ResetButton
+                onClick={() => updateSettings({ size: DEFAULT_OVERLAY_SETTINGS.size })}
+                disabled={settings.size === DEFAULT_OVERLAY_SETTINGS.size}
+              />
+            </span>
           </span>
           <input
             type="range"
@@ -88,7 +95,13 @@ export default function OverlayPage() {
         <label className={sliderLabelClass}>
           <span className={sliderHeaderClass}>
             <span>Opacity</span>
-            <span>{Math.round(settings.opacity * 100)}%</span>
+            <span className="flex items-center gap-2">
+              {Math.round(settings.opacity * 100)}%
+              <ResetButton
+                onClick={() => updateSettings({ opacity: DEFAULT_OVERLAY_SETTINGS.opacity })}
+                disabled={settings.opacity === DEFAULT_OVERLAY_SETTINGS.opacity}
+              />
+            </span>
           </span>
           <input
             type="range"
@@ -101,7 +114,13 @@ export default function OverlayPage() {
         </label>
 
         <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium">Anchor</span>
+          <span className="flex items-center justify-between text-sm font-medium">
+            <span>Anchor</span>
+            <ResetButton
+              onClick={() => updateSettings({ anchor: DEFAULT_OVERLAY_SETTINGS.anchor })}
+              disabled={settings.anchor === DEFAULT_OVERLAY_SETTINGS.anchor}
+            />
+          </span>
           <select
             value={settings.anchor}
             onChange={(e) => updateSettings({ anchor: e.currentTarget.value as Anchor })}
@@ -114,13 +133,6 @@ export default function OverlayPage() {
             ))}
           </select>
         </label>
-
-        <button
-          onClick={() => updateSettings(DEFAULT_OVERLAY_SETTINGS)}
-          className="self-start text-sm text-[#396cd8] underline"
-        >
-          Reset to defaults
-        </button>
       </div>
     </main>
   );
