@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import packageJson from "../../package.json";
 
 const tabs = [
   { to: "/gallery", label: "Gallery" },
@@ -37,6 +38,9 @@ export default function Sidebar() {
         >
           Settings
         </NavLink>
+        <p className="mt-2 text-center text-[10px] text-[#0f0f0f]/40 dark:text-white/40">
+          v{packageJson.version}
+        </p>
       </div>
     </nav>
   );
