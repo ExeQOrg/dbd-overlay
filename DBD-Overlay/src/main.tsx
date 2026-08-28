@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Overlay from "./Overlay";
 import MainLayout from "./layout/MainLayout";
+import MapsSyncGate from "./layout/MapsSyncGate";
 import GalleryPage from "./pages/GalleryPage";
 import OverlayPage from "./pages/OverlayPage";
 import MapDetectionPage from "./pages/MapDetectionPage";
@@ -21,7 +22,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         <Route
           element={
             <DetectionProvider>
-              <MainLayout />
+              <MapsSyncGate>
+                <MainLayout />
+              </MapsSyncGate>
             </DetectionProvider>
           }
         >

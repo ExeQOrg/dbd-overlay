@@ -68,6 +68,33 @@ fn maps_version_file(app: &tauri::AppHandle) -> tauri::Result<std::path::PathBuf
     Ok(app.path().app_data_dir()?.join("maps-version.json"))
 }
 
+// Tracks where the startup maps sync currently is so the frontend can show a
+// blocking loading screen for it. Kept in managed state (not just events)
+// because the sync thread is spawned during `.setup()`, before the frontend
+// has necessarily attached its event listener - a state snapshot lets it
+// catch up via a command instead of missing events emitted too early.
+#[derive(Serialize, Clone)]
+struct MapsSyncState {
+    phase: String, // "checking" | "downloading" | "done" | "error"
+    current: u64,
+    total: u64,
+    error: Option<String>,
+}
+
+struct MapsSyncStateStore(std::sync::Mutex<MapsSyncState>);
+
+fn set_maps_sync_state(app: &tauri::AppHandle, state: MapsSyncState) {
+    if let Some(store) = app.try_state::<MapsSyncStateStore>() {
+        *store.0.lock().unwrap() = state.clone();
+    }
+    let _ = app.emit("maps-sync-state", state);
+}
+
+#[tauri::command]
+fn get_maps_sync_status(app: tauri::AppHandle) -> MapsSyncState {
+    app.state::<MapsSyncStateStore>().0.lock().unwrap().clone()
+}
+
 fn latest_maps_commit_sha(agent: &ureq::Agent) -> Result<String, String> {
     let url = format!(
         "https://api.github.com/repos/{MAPS_REPO_OWNER}/{MAPS_REPO_NAME}/commits?path={MAPS_REPO_DIR}&per_page=1"
@@ -134,7 +161,13 @@ fn replace_maps(
     }
     fs::create_dir_all(&staging_dir).map_err(|e| e.to_string())?;
 
-    for path in files {
+    let total = files.len() as u64;
+    set_maps_sync_state(
+        app,
+        MapsSyncState { phase: "downloading".to_string(), current: 0, total, error: None },
+    );
+
+    for (index, path) in files.into_iter().enumerate() {
         let relative = path.strip_prefix(&prefix).unwrap_or(path);
         let dest = staging_dir.join(relative);
         if let Some(parent) = dest.parent() {
@@ -153,6 +186,16 @@ fn replace_maps(
         let mut file = fs::File::create(&dest).map_err(|e| e.to_string())?;
         std::io::copy(&mut response.body_mut().as_reader(), &mut file)
             .map_err(|e| format!("failed to save {path}: {e}"))?;
+
+        set_maps_sync_state(
+            app,
+            MapsSyncState {
+                phase: "downloading".to_string(),
+                current: index as u64 + 1,
+                total,
+                error: None,
+            },
+        );
     }
 
     if maps_dir.exists() {
@@ -168,12 +211,31 @@ fn replace_maps(
     Ok(())
 }
 
+fn maps_sync_done(app: &tauri::AppHandle) {
+    set_maps_sync_state(
+        app,
+        MapsSyncState { phase: "done".to_string(), current: 0, total: 0, error: None },
+    );
+}
+
+fn maps_sync_failed(app: &tauri::AppHandle, error: String) {
+    set_maps_sync_state(
+        app,
+        MapsSyncState { phase: "error".to_string(), current: 0, total: 0, error: Some(error) },
+    );
+}
+
 // Runs on startup on a background thread: checks the latest commit touching
 // Maps/ in the repo and, if it differs from the sha we last downloaded,
 // replaces the local map pack. Failures (offline, rate-limited, etc.) are
 // logged and otherwise ignored so a bad network doesn't block startup or
 // disturb whatever maps are already on disk.
 fn sync_maps_with_repo(app: &tauri::AppHandle) {
+    set_maps_sync_state(
+        app,
+        MapsSyncState { phase: "checking".to_string(), current: 0, total: 0, error: None },
+    );
+
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(20)))
         .user_agent("dbd-toolbox")
@@ -184,6 +246,7 @@ fn sync_maps_with_repo(app: &tauri::AppHandle) {
         Ok(sha) => sha,
         Err(e) => {
             eprintln!("failed to check for map updates: {e}");
+            maps_sync_failed(app, e);
             return;
         }
     };
@@ -192,6 +255,7 @@ fn sync_maps_with_repo(app: &tauri::AppHandle) {
         Ok(path) => path,
         Err(e) => {
             eprintln!("failed to resolve maps-version.json path: {e}");
+            maps_sync_failed(app, e.to_string());
             return;
         }
     };
@@ -202,11 +266,16 @@ fn sync_maps_with_repo(app: &tauri::AppHandle) {
         .map(|v| v.sha);
 
     if stored_sha.as_deref() == Some(latest_sha.as_str()) {
+        maps_sync_done(app);
         return;
     }
 
-    if let Err(e) = replace_maps(app, &agent, &latest_sha, &version_path) {
-        eprintln!("failed to download map updates: {e}");
+    match replace_maps(app, &agent, &latest_sha, &version_path) {
+        Ok(()) => maps_sync_done(app),
+        Err(e) => {
+            eprintln!("failed to download map updates: {e}");
+            maps_sync_failed(app, e);
+        }
     }
 }
 
@@ -451,11 +520,18 @@ pub fn run() {
                 })
                 .build(),
         )
+        .manage(MapsSyncStateStore(std::sync::Mutex::new(MapsSyncState {
+            phase: "checking".to_string(),
+            current: 0,
+            total: 0,
+            error: None,
+        })))
         .invoke_handler(tauri::generate_handler![
             list_gallery_images,
             list_capturable_windows,
             capture_screen_region,
-            open_obs_popout
+            open_obs_popout,
+            get_maps_sync_status
         ])
         .setup(|app| {
             images_dir(app.handle())?;
