@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { useDetection } from "../lib/DetectionContext";
 import { DEFAULT_DETECTION_SETTINGS } from "../lib/DetectionSettings";
+import { keyEventToAccelerator, formatAccelerator } from "../lib/Shortcut";
 import { pageClass, fieldClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
 import ResetButton from "../components/ResetButton";
 
@@ -16,9 +18,42 @@ export default function MapDetectionPage() {
     scanNow,
     refreshWindows,
     updateSettings,
+    setScanShortcut,
   } = useDetection();
 
   const region = settings.region;
+
+  const [recordingShortcut, setRecordingShortcut] = useState(false);
+  const [shortcutError, setShortcutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!recordingShortcut) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.key === "Escape") {
+        setRecordingShortcut(false);
+        return;
+      }
+
+      const accelerator = keyEventToAccelerator(e);
+      if (!accelerator) return; // still only modifiers held, or an unsupported key
+
+      if (!accelerator.includes("+")) {
+        setShortcutError("Include a modifier key (Ctrl, Alt, or Shift) with it.");
+        return;
+      }
+
+      setRecordingShortcut(false);
+      setShortcutError(null);
+      setScanShortcut(accelerator).catch((err) => setShortcutError(String(err)));
+    }
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [recordingShortcut, setScanShortcut]);
 
   // Mirrors the case-insensitive substring match capture_screen_region uses,
   // so the picker shows the live window that's actually being captured
@@ -39,10 +74,40 @@ export default function MapDetectionPage() {
       >
         {scanning ? "Scanning…" : "Scan Now"}
       </button>
-      <p className="mb-6 text-xs text-[#888]">Or press Ctrl+O anytime, even while the game is focused.</p>
+      <p className="mb-6 text-xs text-[#888]">
+        Or press {formatAccelerator(settings.scanShortcut)} anytime, even while the game is focused.
+      </p>
 
       <div className="flex w-full max-w-[820px] flex-col gap-6 text-left lg:flex-row lg:items-start">
       <div className="flex w-full flex-col gap-6 lg:max-w-[360px]">
+        <div>
+          <p className="mb-2 flex items-center justify-between text-sm font-medium">
+            <span>Manual scan shortcut</span>
+            <ResetButton
+              onClick={() =>
+                setScanShortcut(DEFAULT_DETECTION_SETTINGS.scanShortcut).catch((err) =>
+                  setShortcutError(String(err))
+                )
+              }
+              disabled={settings.scanShortcut === DEFAULT_DETECTION_SETTINGS.scanShortcut}
+            />
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setShortcutError(null);
+              setRecordingShortcut(true);
+            }}
+            className={`w-full text-left ${fieldClass} ${recordingShortcut ? "text-[#396cd8]" : ""}`}
+          >
+            {recordingShortcut ? "Press a key combo… (Esc to cancel)" : formatAccelerator(settings.scanShortcut)}
+          </button>
+          {shortcutError && <p className="mt-2 text-xs text-[#c0392b]">{shortcutError}</p>}
+          <p className="mt-2 text-xs text-[#888]">
+            Triggers a scan globally, even while the game is focused.
+          </p>
+        </div>
+
         <div>
           <p className="mb-2 flex items-center justify-between text-sm font-medium">
             <span>Capture window</span>

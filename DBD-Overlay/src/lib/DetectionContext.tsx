@@ -32,6 +32,7 @@ interface DetectionContextValue {
   refreshWindows: () => void;
   refreshGalleryImages: () => void;
   updateSettings: (patch: Partial<Omit<DetectionSettings, "region">> & { region?: Partial<DetectionRegion> }) => void;
+  setScanShortcut: (accelerator: string) => Promise<void>;
 }
 
 const DetectionContext = createContext<DetectionContextValue | null>(null);
@@ -64,6 +65,13 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     refreshWindows();
     refreshGalleryImages();
 
+    // The shortcut is only known to the frontend (persisted in localStorage),
+    // so it has to be (re)registered with the backend on every launch - Rust
+    // only knows the hardcoded fallback it registered before this ever runs.
+    invoke("set_scan_shortcut", { shortcut: settingsRef.current.scanShortcut }).catch((err) => {
+      console.error("failed to register scan shortcut", err);
+    });
+
     const unlistenScan = listen("trigger-scan", () => {
       scanNow();
     });
@@ -94,6 +102,11 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     };
     setSettings(next);
     saveDetectionSettings(next);
+  }
+
+  async function setScanShortcut(accelerator: string) {
+    await invoke("set_scan_shortcut", { shortcut: accelerator });
+    updateSettings({ scanShortcut: accelerator });
   }
 
   async function scanNow() {
@@ -173,6 +186,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     refreshWindows,
     refreshGalleryImages,
     updateSettings,
+    setScanShortcut,
   };
 
   return <DetectionContext.Provider value={value}>{children}</DetectionContext.Provider>;

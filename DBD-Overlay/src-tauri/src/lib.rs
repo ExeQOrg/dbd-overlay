@@ -461,6 +461,19 @@ fn capture_screen_region(
     Ok(format!("data:image/png;base64,{}", BASE64.encode(&buf)))
 }
 
+// Called from the frontend whenever the user (re)maps the manual-scan
+// shortcut - both on every app startup (to apply whatever was saved last,
+// since only the frontend persists it) and whenever they record a new one.
+// Only one shortcut is ever registered by this app, so unregistering
+// everything first keeps this idempotent without tracking the previous value.
+#[tauri::command]
+fn set_scan_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<(), String> {
+    app.global_shortcut().unregister_all().map_err(|e| e.to_string())?;
+    app.global_shortcut()
+        .register(shortcut.as_str())
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn open_obs_popout(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("overlay-popout") {
@@ -531,7 +544,8 @@ pub fn run() {
             list_capturable_windows,
             capture_screen_region,
             open_obs_popout,
-            get_maps_sync_status
+            get_maps_sync_status,
+            set_scan_shortcut
         ])
         .setup(|app| {
             images_dir(app.handle())?;

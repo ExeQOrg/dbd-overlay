@@ -10,6 +10,7 @@ export interface DetectionSettings {
   threshold: number;
   windowTitle: string;
   brightnessThreshold: number;
+  scanShortcut: string;
 }
 
 export const DEFAULT_DETECTION_SETTINGS: DetectionSettings = {
@@ -17,6 +18,7 @@ export const DEFAULT_DETECTION_SETTINGS: DetectionSettings = {
   threshold: 0.55,
   windowTitle: "DeadByDaylight",
   brightnessThreshold: 120,
+  scanShortcut: "CommandOrControl+O",
 };
 
 const STORAGE_KEY = "map-detection-settings";
