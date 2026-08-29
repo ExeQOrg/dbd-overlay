@@ -1,16 +1,25 @@
 import { useEffect, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 import { GalleryImage, getCreators } from "../lib/Gallery";
 import { loadGlobalSettings } from "../lib/GlobalSettings";
-import { pageClass, fieldClass, secondaryButtonClass, panelClass } from "../lib/Styles";
+import {
+  pageClass,
+  fieldClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+  outlineButtonClass,
+  panelClass,
+} from "../lib/Styles";
 import PageHeading from "../components/PageHeading";
 
 export default function GalleryPage() {
   const [search, setSearch] = useState("");
   const [creatorFilter, setCreatorFilter] = useState(() => loadGlobalSettings().preferredCreator);
   const [images, setImages] = useState<GalleryImage[]>([]);
+  const [overlayVisible, setOverlayVisible] = useState(true);
 
   const loadImages = () => {
     invoke<GalleryImage[]>("list_gallery_images").then(setImages);
@@ -23,6 +32,30 @@ export default function GalleryPage() {
       unlisten.then((fn) => fn());
     };
   }, []);
+
+  useEffect(() => {
+    const overlay = WebviewWindow.getByLabel("overlay");
+    overlay?.then((win) => win?.isVisible().then(setOverlayVisible));
+  }, []);
+
+  async function toggleOverlayVisible() {
+    const overlay = await WebviewWindow.getByLabel("overlay");
+    if (!overlay) return;
+    if (overlayVisible) {
+      await overlay.hide();
+    } else {
+      await overlay.show();
+    }
+    setOverlayVisible(!overlayVisible);
+  }
+
+  async function clearOverlay() {
+    await emit("update-content", {});
+  }
+
+  async function openPopout() {
+    await invoke("open_obs_popout");
+  }
 
   const creators = getCreators(images);
 
@@ -67,6 +100,18 @@ export default function GalleryPage() {
         </select>
         <button onClick={loadImages} className={`shrink-0 ${secondaryButtonClass}`}>
           Refresh
+        </button>
+      </div>
+
+      <div className="mb-6 flex w-full max-w-[480px] gap-2">
+        <button onClick={toggleOverlayVisible} className={`flex-1 ${primaryButtonClass}`}>
+          {overlayVisible ? "Hide Overlay" : "Show Overlay"}
+        </button>
+        <button onClick={clearOverlay} className={`flex-1 ${secondaryButtonClass}`}>
+          Clear Overlay
+        </button>
+        <button onClick={openPopout} className={`flex-1 ${outlineButtonClass}`}>
+          Popout OBS
         </button>
       </div>
 

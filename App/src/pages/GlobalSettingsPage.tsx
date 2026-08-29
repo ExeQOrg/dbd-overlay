@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { emit } from "@tauri-apps/api/event";
 import { useDetection } from "../lib/DetectionContext";
 import { getCreators } from "../lib/Gallery";
 import {
@@ -7,14 +8,38 @@ import {
   loadGlobalSettings,
   saveGlobalSettings,
 } from "../lib/GlobalSettings";
-import { pageClass, fieldClass } from "../lib/Styles";
+import {
+  Anchor,
+  DEFAULT_OVERLAY_SETTINGS,
+  loadOverlaySettings,
+  saveOverlaySettings,
+  OverlaySettings,
+} from "../lib/OverlaySettings";
+import { DEFAULT_DETECTION_SETTINGS } from "../lib/DetectionSettings";
+import { keyEventToAccelerator, formatAccelerator } from "../lib/Shortcut";
+import { pageClass, fieldClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
 import ResetButton from "../components/ResetButton";
 import PageHeading from "../components/PageHeading";
+import Accordion from "../components/Accordion";
+
+const anchorOptions: { value: Anchor; label: string }[] = [
+  { value: "top-left", label: "Top Left" },
+  { value: "top-right", label: "Top Right" },
+  { value: "bottom-left", label: "Bottom Left" },
+  { value: "bottom-right", label: "Bottom Right" },
+];
 
 export default function GlobalSettingsPage() {
-  const { images } = useDetection();
-  const [settings, setSettings] = useState<GlobalSettings>(() => loadGlobalSettings());
+  const {
+    images,
+    settings: detectionSettings,
+    windows,
+    refreshWindows,
+    updateSettings: updateDetectionSettings,
+    setScanShortcut,
+  } = useDetection();
 
+  const [settings, setSettings] = useState<GlobalSettings>(() => loadGlobalSettings());
   const creators = getCreators(images);
 
   function updateSettings(patch: Partial<GlobalSettings>) {
@@ -23,11 +48,64 @@ export default function GlobalSettingsPage() {
     saveGlobalSettings(next);
   }
 
+  // --- Overlay ---
+  const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(() => loadOverlaySettings());
+
+  function updateOverlaySettings(patch: Partial<OverlaySettings>) {
+    const next = { ...overlaySettings, ...patch };
+    setOverlaySettings(next);
+    saveOverlaySettings(next);
+    emit("update-overlay-settings", next);
+  }
+
+  // --- Detect ---
+  const [recordingShortcut, setRecordingShortcut] = useState(false);
+  const [shortcutError, setShortcutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!recordingShortcut) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.key === "Escape") {
+        setRecordingShortcut(false);
+        return;
+      }
+
+      const accelerator = keyEventToAccelerator(e);
+      if (!accelerator) return; // still only modifiers held, or an unsupported key
+
+      if (!accelerator.includes("+")) {
+        setShortcutError("Include a modifier key (Ctrl, Alt, or Shift) with it.");
+        return;
+      }
+
+      setRecordingShortcut(false);
+      setShortcutError(null);
+      setScanShortcut(accelerator).catch((err) => setShortcutError(String(err)));
+    }
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [recordingShortcut, setScanShortcut]);
+
+  const region = detectionSettings.region;
+
+  // Mirrors the case-insensitive substring match capture_screen_region uses,
+  // so the picker shows the live window that's actually being captured
+  // rather than requiring its title to equal the saved pattern verbatim.
+  const matchedWindow = windows.find((w) =>
+    w.title.toLowerCase().includes(detectionSettings.windowTitle.toLowerCase())
+  );
+  const windowSelectValue = matchedWindow ? matchedWindow.title : detectionSettings.windowTitle;
+
   return (
     <main className={pageClass}>
       <PageHeading>Settings</PageHeading>
 
-      <div className="flex w-full max-w-[320px] flex-col gap-6 text-left">
+      <div className="flex w-full max-w-[480px] flex-col gap-6 text-left">
         <div>
           <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
             <span>Preferred creator</span>
@@ -53,6 +131,272 @@ export default function GlobalSettingsPage() {
             version of a map when detection finds it shared by multiple creators.
           </p>
         </div>
+
+        <Accordion title="Overlay">
+          <div className="flex flex-col gap-6">
+            <label className={sliderLabelClass}>
+              <span className={sliderHeaderClass}>
+                <span>Image size</span>
+                <span className="flex items-center gap-2">
+                  {overlaySettings.size}px
+                  <ResetButton
+                    onClick={() => updateOverlaySettings({ size: DEFAULT_OVERLAY_SETTINGS.size })}
+                    disabled={overlaySettings.size === DEFAULT_OVERLAY_SETTINGS.size}
+                  />
+                </span>
+              </span>
+              <input
+                type="range"
+                min={50}
+                max={600}
+                step={10}
+                value={overlaySettings.size}
+                onChange={(e) => updateOverlaySettings({ size: Number(e.currentTarget.value) })}
+              />
+            </label>
+
+            <label className={sliderLabelClass}>
+              <span className={sliderHeaderClass}>
+                <span>Opacity</span>
+                <span className="flex items-center gap-2">
+                  {Math.round(overlaySettings.opacity * 100)}%
+                  <ResetButton
+                    onClick={() => updateOverlaySettings({ opacity: DEFAULT_OVERLAY_SETTINGS.opacity })}
+                    disabled={overlaySettings.opacity === DEFAULT_OVERLAY_SETTINGS.opacity}
+                  />
+                </span>
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={Math.round(overlaySettings.opacity * 100)}
+                onChange={(e) => updateOverlaySettings({ opacity: Number(e.currentTarget.value) / 100 })}
+              />
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="flex items-center justify-between text-sm font-medium">
+                <span>Anchor</span>
+                <ResetButton
+                  onClick={() => updateOverlaySettings({ anchor: DEFAULT_OVERLAY_SETTINGS.anchor })}
+                  disabled={overlaySettings.anchor === DEFAULT_OVERLAY_SETTINGS.anchor}
+                />
+              </span>
+              <select
+                value={overlaySettings.anchor}
+                onChange={(e) => updateOverlaySettings({ anchor: e.currentTarget.value as Anchor })}
+                className={fieldClass}
+              >
+                {anchorOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </Accordion>
+
+        <Accordion title="Detect">
+          <div className="flex flex-col gap-6">
+            <div>
+              <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
+                <span>Manual scan shortcut</span>
+                <ResetButton
+                  onClick={() =>
+                    setScanShortcut(DEFAULT_DETECTION_SETTINGS.scanShortcut).catch((err) =>
+                      setShortcutError(String(err))
+                    )
+                  }
+                  disabled={detectionSettings.scanShortcut === DEFAULT_DETECTION_SETTINGS.scanShortcut}
+                />
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShortcutError(null);
+                  setRecordingShortcut(true);
+                }}
+                className={`w-full text-left ${fieldClass} ${recordingShortcut ? "text-blood" : ""}`}
+              >
+                {recordingShortcut
+                  ? "Press a key combo… (Esc to cancel)"
+                  : formatAccelerator(detectionSettings.scanShortcut)}
+              </button>
+              {shortcutError && <p className="mt-2 text-xs text-blood">{shortcutError}</p>}
+              <p className="mt-2 text-xs text-ink/70">
+                Triggers a scan globally, even while the game is focused.
+              </p>
+            </div>
+
+            <div>
+              <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
+                <span>Capture window</span>
+                <ResetButton
+                  onClick={() => updateDetectionSettings({ windowTitle: DEFAULT_DETECTION_SETTINGS.windowTitle })}
+                  disabled={detectionSettings.windowTitle === DEFAULT_DETECTION_SETTINGS.windowTitle}
+                />
+              </p>
+              <div className="flex gap-2">
+                <select
+                  value={windowSelectValue}
+                  onChange={(e) => updateDetectionSettings({ windowTitle: e.currentTarget.value })}
+                  className={`w-full ${fieldClass}`}
+                >
+                  <option value="">Select a window…</option>
+                  {detectionSettings.windowTitle && !matchedWindow && (
+                    <option value={detectionSettings.windowTitle}>
+                      {detectionSettings.windowTitle} (not running)
+                    </option>
+                  )}
+                  {windows.map((w) => (
+                    <option key={w.title} value={w.title}>
+                      {w.title} ({w.appName})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={refreshWindows}
+                  className="shrink-0 rounded bg-fog-dark px-4 py-2 text-sm font-display uppercase tracking-wide text-bone shadow-sm transition-colors hover:bg-ink"
+                >
+                  Refresh
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-ink/70">
+                Detection matches this automatically once the game is running - you only need to
+                change it here if the wrong window gets picked up.
+              </p>
+            </div>
+
+            <div>
+              <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
+                <span>Scan region (% of window)</span>
+                <ResetButton
+                  onClick={() => updateDetectionSettings({ region: DEFAULT_DETECTION_SETTINGS.region })}
+                  disabled={
+                    region.x === DEFAULT_DETECTION_SETTINGS.region.x &&
+                    region.y === DEFAULT_DETECTION_SETTINGS.region.y &&
+                    region.width === DEFAULT_DETECTION_SETTINGS.region.width &&
+                    region.height === DEFAULT_DETECTION_SETTINGS.region.height
+                  }
+                />
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <label className="flex flex-col gap-1 text-sm text-ink">
+                  X
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={Math.round(region.x * 100)}
+                    onChange={(e) =>
+                      updateDetectionSettings({ region: { x: Number(e.currentTarget.value) / 100 } })
+                    }
+                    className={fieldClass}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-ink">
+                  Y
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={Math.round(region.y * 100)}
+                    onChange={(e) =>
+                      updateDetectionSettings({ region: { y: Number(e.currentTarget.value) / 100 } })
+                    }
+                    className={fieldClass}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-ink">
+                  Width
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={Math.round(region.width * 100)}
+                    onChange={(e) =>
+                      updateDetectionSettings({ region: { width: Number(e.currentTarget.value) / 100 } })
+                    }
+                    className={fieldClass}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-ink">
+                  Height
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={Math.round(region.height * 100)}
+                    onChange={(e) =>
+                      updateDetectionSettings({ region: { height: Number(e.currentTarget.value) / 100 } })
+                    }
+                    className={fieldClass}
+                  />
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-ink/70">
+                Relative to the top-left of the selected window. Tune it with the preview on the
+                Detect page until it tightly frames the map name.
+              </p>
+            </div>
+
+            <label className={sliderLabelClass}>
+              <span className={sliderHeaderClass}>
+                <span>Match threshold</span>
+                <span className="flex items-center gap-2">
+                  {Math.round(detectionSettings.threshold * 100)}%
+                  <ResetButton
+                    onClick={() => updateDetectionSettings({ threshold: DEFAULT_DETECTION_SETTINGS.threshold })}
+                    disabled={detectionSettings.threshold === DEFAULT_DETECTION_SETTINGS.threshold}
+                  />
+                </span>
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={Math.round(detectionSettings.threshold * 100)}
+                onChange={(e) => updateDetectionSettings({ threshold: Number(e.currentTarget.value) / 100 })}
+              />
+            </label>
+
+            <label className={sliderLabelClass}>
+              <span className={sliderHeaderClass}>
+                <span>Brightness threshold</span>
+                <span className="flex items-center gap-2">
+                  {detectionSettings.brightnessThreshold}
+                  <ResetButton
+                    onClick={() =>
+                      updateDetectionSettings({
+                        brightnessThreshold: DEFAULT_DETECTION_SETTINGS.brightnessThreshold,
+                      })
+                    }
+                    disabled={
+                      detectionSettings.brightnessThreshold === DEFAULT_DETECTION_SETTINGS.brightnessThreshold
+                    }
+                  />
+                </span>
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={255}
+                step={1}
+                value={detectionSettings.brightnessThreshold}
+                onChange={(e) => updateDetectionSettings({ brightnessThreshold: Number(e.currentTarget.value) })}
+              />
+              <p className="text-xs text-ink/70">
+                Pixels brighter than this are kept as text, everything else is dropped to isolate the
+                map name from the background. Lower it if scans miss text on a dim screen/HDR setup,
+                raise it if the background is being picked up as text.
+              </p>
+            </label>
+          </div>
+        </Accordion>
       </div>
     </main>
   );

@@ -6,7 +6,6 @@ import Overlay from "./Overlay";
 import MainLayout from "./layout/MainLayout";
 import MapsSyncGate from "./layout/MapsSyncGate";
 import GalleryPage from "./pages/GalleryPage";
-import OverlayPage from "./pages/OverlayPage";
 import MapDetectionPage from "./pages/MapDetectionPage";
 import GlobalSettingsPage from "./pages/GlobalSettingsPage";
 import { DetectionProvider } from "./lib/DetectionContext";
@@ -30,7 +29,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         >
           <Route path="/" element={<Navigate to="/gallery" replace />} />
           <Route path="/gallery" element={<GalleryPage />} />
-          <Route path="/controls" element={<OverlayPage />} />
           <Route path="/detect" element={<MapDetectionPage />} />
           <Route path="/settings" element={<GlobalSettingsPage />} />
         </Route>

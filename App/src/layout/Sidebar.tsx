@@ -3,7 +3,6 @@ import packageJson from "../../package.json";
 
 const tabs = [
   { to: "/gallery", label: "Gallery" },
-  { to: "/controls", label: "Overlay" },
   { to: "/detect", label: "Detect" },
 ];
 
