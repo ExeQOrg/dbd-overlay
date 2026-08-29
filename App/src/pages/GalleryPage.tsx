@@ -5,6 +5,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 import { GalleryImage, getCreators } from "../lib/Gallery";
 import { loadGlobalSettings } from "../lib/GlobalSettings";
+import { useDetection } from "../lib/DetectionContext";
 import {
   pageClass,
   fieldClass,
@@ -14,8 +15,10 @@ import {
   panelClass,
 } from "../lib/Styles";
 import PageHeading from "../components/PageHeading";
+import Switch from "../components/Switch";
 
 export default function GalleryPage() {
+  const { settings: detectionSettings, updateSettings: updateDetectionSettings } = useDetection();
   const [search, setSearch] = useState("");
   const [creatorFilter, setCreatorFilter] = useState(() => loadGlobalSettings().preferredCreator);
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -113,6 +116,14 @@ export default function GalleryPage() {
         <button onClick={openPopout} className={`flex-1 ${outlineButtonClass}`}>
           Popout OBS
         </button>
+      </div>
+
+      <div className="mb-6 flex w-full max-w-[480px] items-center justify-center">
+        <Switch
+          checked={detectionSettings.autoDetectEnabled}
+          onChange={(checked) => updateDetectionSettings({ autoDetectEnabled: checked })}
+          label="Auto Detect"
+        />
       </div>
 
       <div className="grid w-full grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-6">

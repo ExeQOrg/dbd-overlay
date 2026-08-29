@@ -418,6 +418,34 @@ export default function GlobalSettingsPage() {
                 raise it if the background is being picked up as text.
               </p>
             </label>
+
+            <label className={sliderLabelClass}>
+              <span className={sliderHeaderClass}>
+                <span>Auto detect interval</span>
+                <span className="flex items-center gap-2">
+                  {detectionSettings.autoDetectInterval}s
+                  <ResetButton
+                    onClick={() =>
+                      updateDetectionSettings({ autoDetectInterval: DEFAULT_DETECTION_SETTINGS.autoDetectInterval })
+                    }
+                    disabled={detectionSettings.autoDetectInterval === DEFAULT_DETECTION_SETTINGS.autoDetectInterval}
+                  />
+                </span>
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={60}
+                step={1}
+                value={detectionSettings.autoDetectInterval}
+                onChange={(e) => updateDetectionSettings({ autoDetectInterval: Number(e.currentTarget.value) })}
+              />
+              <p className="text-xs text-ink/70">
+                Time between automatic scans, measured from when the previous scan finishes - so a
+                scan that runs long just pushes the next one back instead of overlapping it. Toggle
+                auto detect on from the Gallery page.
+              </p>
+            </label>
           </div>
         </Accordion>
       </div>

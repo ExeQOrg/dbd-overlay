@@ -56,6 +56,8 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const scanningRef = useRef(scanning);
   const workerRef = useRef<Worker | null>(null);
   const lastSentRef = useRef<string | null>(null);
+  const autoDetectTokenRef = useRef(0);
+  const autoDetectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -202,6 +204,39 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       setScanning(false);
     }
   }
+
+  // Runs scans back-to-back with a gap of `autoDetectInterval` seconds
+  // between them, measured from when each scan *finishes* rather than a
+  // fixed-rate setInterval - so a scan that takes longer than the interval
+  // just pushes the next one back instead of overlapping it.
+  //
+  // Guarded by a token rather than a plain boolean flag so that rapidly
+  // toggling autoDetectEnabled off and back on (or a fast effect re-run)
+  // can't leave two loops racing each other: each loop instance only keeps
+  // going while the token it captured on start is still the current one.
+  useEffect(() => {
+    if (!settings.autoDetectEnabled) return;
+
+    const token = ++autoDetectTokenRef.current;
+
+    (async function loop() {
+      while (autoDetectTokenRef.current === token) {
+        await scanNow();
+        if (autoDetectTokenRef.current !== token) break;
+        await new Promise<void>((resolve) => {
+          autoDetectTimeoutRef.current = setTimeout(resolve, settingsRef.current.autoDetectInterval * 1000);
+        });
+      }
+    })();
+
+    return () => {
+      autoDetectTokenRef.current++;
+      if (autoDetectTimeoutRef.current) {
+        clearTimeout(autoDetectTimeoutRef.current);
+        autoDetectTimeoutRef.current = null;
+      }
+    };
+  }, [settings.autoDetectEnabled]);
 
   const value: DetectionContextValue = {
     settings,

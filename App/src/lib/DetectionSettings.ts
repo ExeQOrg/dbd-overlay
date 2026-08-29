@@ -11,6 +11,8 @@ export interface DetectionSettings {
   windowTitle: string;
   brightnessThreshold: number;
   scanShortcut: string;
+  autoDetectEnabled: boolean;
+  autoDetectInterval: number;
 }
 
 export const DEFAULT_REGION: DetectionRegion = { x: 0.3, y: 0.75, width: 0.4, height: 0.15 };
@@ -21,6 +23,8 @@ export const DEFAULT_DETECTION_SETTINGS: DetectionSettings = {
   windowTitle: "DeadByDaylight",
   brightnessThreshold: 120,
   scanShortcut: "CommandOrControl+O",
+  autoDetectEnabled: false,
+  autoDetectInterval: 2,
 };
 
 const STORAGE_KEY = "map-detection-settings";
