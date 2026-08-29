@@ -35,15 +35,15 @@ export default function MapsSyncGate({ children }: { children: ReactNode }) {
     <>
       {children}
       {blocking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f6f6f6]/95 backdrop-blur-sm dark:bg-[#2f2f2f]/95">
-          <div className="flex w-80 flex-col items-center gap-5 rounded-2xl border border-black/10 bg-white px-8 py-10 text-center shadow-[0_8px_30px_rgba(0,0,0,0.15)] dark:border-white/10 dark:bg-[#0f0f0f98]">
-            <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-[#396cd8]/20 border-t-[#396cd8]" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-fog/95 backdrop-blur-sm">
+          <div className="flex w-80 flex-col items-center gap-5 rounded border border-ink/10 bg-bone px-8 py-10 text-center shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
+            <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-blood/20 border-t-blood" />
 
             <div className="flex flex-col gap-1">
-              <p className="text-base text-[#999] font-semibold">
+              <p className="font-display text-lg uppercase tracking-wide text-ink">
                 {state.phase === "checking" ? "Checking for map updates" : "Downloading maps"}
               </p>
-              <p className="text-xs text-[#777]">
+              <p className="text-xs text-ink/60">
                 {state.phase === "checking"
                   ? "This only takes a moment…"
                   : "Only happens when the map pack changes - won't take long."}
@@ -52,13 +52,13 @@ export default function MapsSyncGate({ children }: { children: ReactNode }) {
 
             {showBar && (
               <div className="flex w-full flex-col gap-1.5">
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink/10">
                   <div
-                    className="h-full rounded-full bg-[#396cd8] transition-[width] duration-200 ease-out"
+                    className="h-full rounded-full bg-blood transition-[width] duration-200 ease-out"
                     style={{ width: `${percent}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-[#888]">
+                <div className="flex justify-between font-mono text-xs text-ink/50">
                   <span>
                     {state.current} / {state.total} files
                   </span>

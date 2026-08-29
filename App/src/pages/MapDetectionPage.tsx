@@ -2,8 +2,16 @@ import { useEffect, useState } from "react";
 import { useDetection } from "../lib/DetectionContext";
 import { DEFAULT_DETECTION_SETTINGS } from "../lib/DetectionSettings";
 import { keyEventToAccelerator, formatAccelerator } from "../lib/Shortcut";
-import { pageClass, fieldClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
+import {
+  pageClass,
+  fieldClass,
+  primaryButtonClass,
+  sliderLabelClass,
+  sliderHeaderClass,
+  panelClass,
+} from "../lib/Styles";
 import ResetButton from "../components/ResetButton";
+import PageHeading from "../components/PageHeading";
 
 export default function MapDetectionPage() {
   const {
@@ -65,7 +73,7 @@ export default function MapDetectionPage() {
 
   return (
     <main className={pageClass}>
-      <h1 className="mb-6 text-center">Map Detection</h1>
+      <PageHeading>Map Detection</PageHeading>
 
       <button
         onClick={scanNow}
@@ -74,14 +82,14 @@ export default function MapDetectionPage() {
       >
         {scanning ? "Scanning…" : "Scan Now"}
       </button>
-      <p className="mb-6 text-xs text-[#888]">
+      <p className="mb-6 text-xs text-ink/70">
         Or press {formatAccelerator(settings.scanShortcut)} anytime, even while the game is focused.
       </p>
 
       <div className="flex w-full max-w-[820px] flex-col gap-6 text-left lg:flex-row lg:items-start">
       <div className="flex w-full flex-col gap-6 lg:max-w-[360px]">
         <div>
-          <p className="mb-2 flex items-center justify-between text-sm font-medium">
+          <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
             <span>Manual scan shortcut</span>
             <ResetButton
               onClick={() =>
@@ -98,18 +106,18 @@ export default function MapDetectionPage() {
               setShortcutError(null);
               setRecordingShortcut(true);
             }}
-            className={`w-full text-left ${fieldClass} ${recordingShortcut ? "text-[#396cd8]" : ""}`}
+            className={`w-full text-left ${fieldClass} ${recordingShortcut ? "text-blood" : ""}`}
           >
             {recordingShortcut ? "Press a key combo… (Esc to cancel)" : formatAccelerator(settings.scanShortcut)}
           </button>
-          {shortcutError && <p className="mt-2 text-xs text-[#c0392b]">{shortcutError}</p>}
-          <p className="mt-2 text-xs text-[#888]">
+          {shortcutError && <p className="mt-2 text-xs text-blood">{shortcutError}</p>}
+          <p className="mt-2 text-xs text-ink/70">
             Triggers a scan globally, even while the game is focused.
           </p>
         </div>
 
         <div>
-          <p className="mb-2 flex items-center justify-between text-sm font-medium">
+          <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
             <span>Capture window</span>
             <ResetButton
               onClick={() => updateSettings({ windowTitle: DEFAULT_DETECTION_SETTINGS.windowTitle })}
@@ -134,19 +142,19 @@ export default function MapDetectionPage() {
             </select>
             <button
               onClick={refreshWindows}
-              className="shrink-0 rounded-lg bg-[#396cd8] px-4 py-2 text-sm font-medium text-white shadow-[0_2px_2px_rgba(0,0,0,0.2)]"
+              className="shrink-0 rounded bg-fog-dark px-4 py-2 text-sm font-display uppercase tracking-wide text-bone shadow-sm transition-colors hover:bg-ink"
             >
               Refresh
             </button>
           </div>
-          <p className="mt-2 text-xs text-[#888]">
+          <p className="mt-2 text-xs text-ink/70">
             Detection matches this automatically once the game is running - you only need to
             change it here if the wrong window gets picked up.
           </p>
         </div>
 
         <div>
-          <p className="mb-2 flex items-center justify-between text-sm font-medium">
+          <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
             <span>Scan region (% of window)</span>
             <ResetButton
               onClick={() => updateSettings({ region: DEFAULT_DETECTION_SETTINGS.region })}
@@ -159,7 +167,7 @@ export default function MapDetectionPage() {
             />
           </p>
           <div className="grid grid-cols-2 gap-4">
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm text-ink">
               X
               <input
                 type="number"
@@ -170,7 +178,7 @@ export default function MapDetectionPage() {
                 className={fieldClass}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm text-ink">
               Y
               <input
                 type="number"
@@ -181,7 +189,7 @@ export default function MapDetectionPage() {
                 className={fieldClass}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm text-ink">
               Width
               <input
                 type="number"
@@ -194,7 +202,7 @@ export default function MapDetectionPage() {
                 className={fieldClass}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm text-ink">
               Height
               <input
                 type="number"
@@ -208,7 +216,7 @@ export default function MapDetectionPage() {
               />
             </label>
           </div>
-          <p className="mt-2 text-xs text-[#888]">
+          <p className="mt-2 text-xs text-ink/70">
             Relative to the top-left of the selected window. Tune it with the preview below until
             it tightly frames the map name.
           </p>
@@ -256,7 +264,7 @@ export default function MapDetectionPage() {
             value={settings.brightnessThreshold}
             onChange={(e) => updateSettings({ brightnessThreshold: Number(e.currentTarget.value) })}
           />
-          <p className="text-xs text-[#888]">
+          <p className="text-xs text-ink/70">
             Pixels brighter than this are kept as text, everything else is dropped to isolate the
             map name from the background. Lower it if scans miss text on a dim screen/HDR setup,
             raise it if the background is being picked up as text.
@@ -265,29 +273,29 @@ export default function MapDetectionPage() {
       </div>
 
       <div className="flex w-full flex-col gap-6 lg:max-w-[360px]">
-        <div className="flex flex-col gap-2 rounded-xl bg-white p-4 text-left text-sm shadow-[0_2px_8px_rgba(0,0,0,0.1)] dark:bg-[#0f0f0f98]">
+        <div className={`flex flex-col gap-2 p-4 text-left font-mono text-sm text-ink ${panelClass}`}>
           <div>
-            <span className="font-medium">Last OCR text: </span>
+            <span className="font-sans font-medium">Last OCR text: </span>
             {lastText || "—"}
           </div>
           <div>
-            <span className="font-medium">Matched map: </span>
+            <span className="font-sans font-medium">Matched map: </span>
             {lastMatch ?? "No match"}
           </div>
-          {error && <div className="text-[#c0392b]">{error}</div>}
+          {error && <div className="text-blood">{error}</div>}
         </div>
 
         {scanDuration !== null && (
-          <p className="text-xs text-[#888]">Scan took {Math.round(scanDuration)} ms</p>
+          <p className="font-mono text-xs text-ink/70">Scan took {Math.round(scanDuration)} ms</p>
         )}
 
         {preview && (
           <div className="flex flex-col items-center gap-2">
-            <span className="text-sm font-medium">Scan region preview</span>
+            <span className="text-sm font-medium text-ink">Scan region preview</span>
             <img
               src={preview}
               alt="Scan region preview"
-              className="max-w-full rounded-lg border border-black/10 dark:border-white/10"
+              className="max-w-full rounded border border-ink/15"
             />
           </div>
         )}

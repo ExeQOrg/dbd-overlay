@@ -9,6 +9,7 @@ import {
 } from "../lib/GlobalSettings";
 import { pageClass, fieldClass } from "../lib/Styles";
 import ResetButton from "../components/ResetButton";
+import PageHeading from "../components/PageHeading";
 
 export default function GlobalSettingsPage() {
   const { images } = useDetection();
@@ -24,11 +25,11 @@ export default function GlobalSettingsPage() {
 
   return (
     <main className={pageClass}>
-      <h1 className="mb-6 text-center">Settings</h1>
+      <PageHeading>Settings</PageHeading>
 
       <div className="flex w-full max-w-[320px] flex-col gap-6 text-left">
         <div>
-          <p className="mb-2 flex items-center justify-between text-sm font-medium">
+          <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
             <span>Preferred creator</span>
             <ResetButton
               onClick={() => updateSettings({ preferredCreator: DEFAULT_GLOBAL_SETTINGS.preferredCreator })}
@@ -47,7 +48,7 @@ export default function GlobalSettingsPage() {
               </option>
             ))}
           </select>
-          <p className="mt-2 text-xs text-[#888]">
+          <p className="mt-2 text-xs text-ink/70">
             Used as the default creator filter on the Gallery page, and to prefer this creator's
             version of a map when detection finds it shared by multiple creators.
           </p>

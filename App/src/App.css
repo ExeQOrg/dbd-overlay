@@ -1,1 +1,38 @@
 @import "tailwindcss";
+
+@font-face {
+  font-family: "Bebas Neue";
+  src: url("/fonts/BebasNeue-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --color-fog: #9c9794;
+  --color-fog-dark: #35322f;
+  --color-fog-deep: #221f1d;
+  --color-bone: #efece7;
+  --color-ink: #221d1c;
+  --color-blood: #991a1e;
+  --color-blood-dark: #6c1215;
+  --color-blood-light: #c23a3e;
+
+  --font-display: "Bebas Neue", "Arial Narrow", sans-serif;
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+}
+
+input[type="range"] {
+  accent-color: var(--color-blood);
+}
+
+::selection {
+  background: var(--color-blood);
+  color: var(--color-bone);
+}

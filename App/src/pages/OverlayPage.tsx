@@ -9,8 +9,17 @@ import {
   saveOverlaySettings,
   OverlaySettings,
 } from "../lib/OverlaySettings";
-import { pageClass, fieldClass, buttonClass, primaryButtonClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
+import {
+  pageClass,
+  fieldClass,
+  secondaryButtonClass,
+  outlineButtonClass,
+  primaryButtonClass,
+  sliderLabelClass,
+  sliderHeaderClass,
+} from "../lib/Styles";
 import ResetButton from "../components/ResetButton";
+import PageHeading from "../components/PageHeading";
 
 const anchorOptions: { value: Anchor; label: string }[] = [
   { value: "top-left", label: "Top Left" },
@@ -56,16 +65,16 @@ export default function OverlayPage() {
 
   return (
     <main className={pageClass}>
-      <h1 className="mb-6 text-center">Overlay Controls</h1>
+      <PageHeading>Overlay Controls</PageHeading>
 
       <div className="flex flex-col gap-4">
         <button onClick={toggleVisible} className={primaryButtonClass}>
           {visible ? "Hide Overlay" : "Show Overlay"}
         </button>
-        <button onClick={clearOverlay} className={`${buttonClass} bg-[#888]`}>
+        <button onClick={clearOverlay} className={secondaryButtonClass}>
           Clear Overlay Content
         </button>
-        <button onClick={openPopout} className={`${buttonClass} bg-[#2e8b57]`}>
+        <button onClick={openPopout} className={outlineButtonClass}>
           Popout OBS Overlay
         </button>
       </div>
