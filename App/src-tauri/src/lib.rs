@@ -326,50 +326,57 @@ fn collect_family_images(
     Ok(())
 }
 
+// Runs the directory walk on a blocking thread (see capture_screen_region's
+// comment) since this is invoked alongside every scan, not just on-demand
+// gallery refreshes.
 #[tauri::command]
-fn list_gallery_images(app: tauri::AppHandle) -> Result<Vec<GalleryImage>, String> {
-    let root = images_dir(&app).map_err(|e| e.to_string())?;
-    let mut images: Vec<GalleryImage> = Vec::new();
+async fn list_gallery_images(app: tauri::AppHandle) -> Result<Vec<GalleryImage>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = images_dir(&app).map_err(|e| e.to_string())?;
+        let mut images: Vec<GalleryImage> = Vec::new();
 
-    for creator_entry in fs::read_dir(&root)
-        .map_err(|e| e.to_string())?
-        .filter_map(|entry| entry.ok())
-    {
-        let creator_path = creator_entry.path();
-        if !creator_path.is_dir() {
-            continue;
-        }
-        let creator = dir_name_string(&creator_path);
-
-        for sub_entry in fs::read_dir(&creator_path)
+        for creator_entry in fs::read_dir(&root)
             .map_err(|e| e.to_string())?
             .filter_map(|entry| entry.ok())
         {
-            let sub_path = sub_entry.path();
-            if sub_path.is_dir() {
-                let family = dir_name_string(&sub_path);
-                collect_family_images(&sub_path, &creator, &family, &mut images)
-                    .map_err(|e| e.to_string())?;
-            } else if is_image_file(&sub_path) {
-                // an image placed directly under the creator folder, with no family subfolder
-                images.push(GalleryImage {
-                    name: file_stem_string(&sub_path),
-                    creator: creator.clone(),
-                    family: String::new(),
-                    path: sub_path.to_string_lossy().to_string(),
-                });
+            let creator_path = creator_entry.path();
+            if !creator_path.is_dir() {
+                continue;
+            }
+            let creator = dir_name_string(&creator_path);
+
+            for sub_entry in fs::read_dir(&creator_path)
+                .map_err(|e| e.to_string())?
+                .filter_map(|entry| entry.ok())
+            {
+                let sub_path = sub_entry.path();
+                if sub_path.is_dir() {
+                    let family = dir_name_string(&sub_path);
+                    collect_family_images(&sub_path, &creator, &family, &mut images)
+                        .map_err(|e| e.to_string())?;
+                } else if is_image_file(&sub_path) {
+                    // an image placed directly under the creator folder, with no family subfolder
+                    images.push(GalleryImage {
+                        name: file_stem_string(&sub_path),
+                        creator: creator.clone(),
+                        family: String::new(),
+                        path: sub_path.to_string_lossy().to_string(),
+                    });
+                }
             }
         }
-    }
 
-    images.sort_by(|a, b| {
-        a.creator
-            .cmp(&b.creator)
-            .then(a.family.cmp(&b.family))
-            .then(a.name.cmp(&b.name))
-    });
+        images.sort_by(|a, b| {
+            a.creator
+                .cmp(&b.creator)
+                .then(a.family.cmp(&b.family))
+                .then(a.name.cmp(&b.name))
+        });
 
-    Ok(images)
+        Ok(images)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[derive(Serialize, Clone)]
@@ -421,57 +428,70 @@ struct RegionInput {
 // Captures the target window once and crops out every requested region from
 // that single capture, so scanning N regions costs one window enumeration +
 // screenshot instead of N.
+//
+// A plain (non-async) #[tauri::command] still runs its body inline on
+// Tauri's async runtime when invoked - it is NOT automatically dispatched to
+// a blocking thread pool. Since window enumeration, screen capture, and the
+// per-region crop/threshold/encode work here are all synchronous and CPU/IO
+// bound, running them inline would stall that runtime (and, with it, the
+// rest of the app) for the duration of the scan. Wrapping the work in
+// `spawn_blocking` moves it onto a dedicated blocking thread so the UI stays
+// responsive while a scan is in progress.
 #[tauri::command]
-fn capture_screen_region(
+async fn capture_screen_region(
     regions: Vec<RegionInput>,
     window_title: String,
     brightness_threshold: u8,
 ) -> Result<Vec<String>, String> {
-    let windows = Window::all().map_err(|e| e.to_string())?;
-    let needle = window_title.to_lowercase();
-    let window = windows
-        .into_iter()
-        .find(|w| w.title().map(|t| t.to_lowercase().contains(&needle)).unwrap_or(false))
-        .ok_or_else(|| format!("Window \"{}\" not found - is the game running?", window_title))?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let windows = Window::all().map_err(|e| e.to_string())?;
+        let needle = window_title.to_lowercase();
+        let window = windows
+            .into_iter()
+            .find(|w| w.title().map(|t| t.to_lowercase().contains(&needle)).unwrap_or(false))
+            .ok_or_else(|| format!("Window \"{}\" not found - is the game running?", window_title))?;
 
-    let mut image = window
-        .capture_image()
-        .map_err(|e| format!("failed to capture \"{}\": {}", window_title, e))?;
+        let mut image = window
+            .capture_image()
+            .map_err(|e| format!("failed to capture \"{}\": {}", window_title, e))?;
 
-    let win_width = image.width();
-    let win_height = image.height();
+        let win_width = image.width();
+        let win_height = image.height();
 
-    let mut results = Vec::with_capacity(regions.len());
-    for region in &regions {
-        let px = (region.x.clamp(0.0, 1.0) * win_width as f64) as u32;
-        let py = (region.y.clamp(0.0, 1.0) * win_height as f64) as u32;
-        let pw = (region.width.clamp(0.0, 1.0) * win_width as f64)
-            .max(1.0)
-            .min((win_width.saturating_sub(px)) as f64) as u32;
-        let ph = (region.height.clamp(0.0, 1.0) * win_height as f64)
-            .max(1.0)
-            .min((win_height.saturating_sub(py)) as f64) as u32;
+        let mut results = Vec::with_capacity(regions.len());
+        for region in &regions {
+            let px = (region.x.clamp(0.0, 1.0) * win_width as f64) as u32;
+            let py = (region.y.clamp(0.0, 1.0) * win_height as f64) as u32;
+            let pw = (region.width.clamp(0.0, 1.0) * win_width as f64)
+                .max(1.0)
+                .min((win_width.saturating_sub(px)) as f64) as u32;
+            let ph = (region.height.clamp(0.0, 1.0) * win_height as f64)
+                .max(1.0)
+                .min((win_height.saturating_sub(py)) as f64) as u32;
 
-        let cropped = image::imageops::crop(&mut image, px, py, pw, ph).to_image();
+            let cropped = image::imageops::crop(&mut image, px, py, pw, ph).to_image();
 
-        // Map names render as solid light text over a translucent bar, but the
-        // game background behind/around it is busy and confuses the OCR engine
-        // into "reading" nonsense. Crushing the crop to grayscale then to pure
-        // black/white isolates the bright text and drops most of that noise.
-        let mut gray = image::DynamicImage::ImageRgba8(cropped).to_luma8();
-        for pixel in gray.pixels_mut() {
-            pixel[0] = if pixel[0] >= brightness_threshold { 255 } else { 0 };
+            // Map names render as solid light text over a translucent bar, but the
+            // game background behind/around it is busy and confuses the OCR engine
+            // into "reading" nonsense. Crushing the crop to grayscale then to pure
+            // black/white isolates the bright text and drops most of that noise.
+            let mut gray = image::DynamicImage::ImageRgba8(cropped).to_luma8();
+            for pixel in gray.pixels_mut() {
+                pixel[0] = if pixel[0] >= brightness_threshold { 255 } else { 0 };
+            }
+
+            let mut buf: Vec<u8> = Vec::new();
+            image::DynamicImage::ImageLuma8(gray)
+                .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+                .map_err(|e| e.to_string())?;
+
+            results.push(format!("data:image/png;base64,{}", BASE64.encode(&buf)));
         }
 
-        let mut buf: Vec<u8> = Vec::new();
-        image::DynamicImage::ImageLuma8(gray)
-            .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
-            .map_err(|e| e.to_string())?;
-
-        results.push(format!("data:image/png;base64,{}", BASE64.encode(&buf)));
-    }
-
-    Ok(results)
+        Ok(results)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // Called from the frontend whenever the user (re)maps the manual-scan
