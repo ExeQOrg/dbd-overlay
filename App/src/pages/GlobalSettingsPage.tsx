@@ -17,7 +17,14 @@ import {
 } from "../lib/OverlaySettings";
 import { DEFAULT_DETECTION_SETTINGS } from "../lib/DetectionSettings";
 import { keyEventToAccelerator, formatAccelerator } from "../lib/Shortcut";
-import { pageClass, fieldClass, sliderLabelClass, sliderHeaderClass } from "../lib/Styles";
+import {
+  pageClass,
+  fieldClass,
+  secondaryButtonClass,
+  resetButtonClass,
+  sliderLabelClass,
+  sliderHeaderClass,
+} from "../lib/Styles";
 import ResetButton from "../components/ResetButton";
 import PageHeading from "../components/PageHeading";
 import Accordion from "../components/Accordion";
@@ -36,6 +43,9 @@ export default function GlobalSettingsPage() {
     windows,
     refreshWindows,
     updateSettings: updateDetectionSettings,
+    addRegion,
+    updateRegion,
+    removeRegion,
     setScanShortcut,
   } = useDetection();
 
@@ -90,8 +100,6 @@ export default function GlobalSettingsPage() {
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [recordingShortcut, setScanShortcut]);
-
-  const region = detectionSettings.region;
 
   // Mirrors the case-insensitive substring match capture_screen_region uses,
   // so the picker shows the live window that's actually being captured
@@ -272,74 +280,89 @@ export default function GlobalSettingsPage() {
 
             <div>
               <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
-                <span>Scan region (% of window)</span>
+                <span>Scan regions (% of window)</span>
                 <ResetButton
-                  onClick={() => updateDetectionSettings({ region: DEFAULT_DETECTION_SETTINGS.region })}
+                  onClick={() => updateDetectionSettings({ regions: DEFAULT_DETECTION_SETTINGS.regions })}
                   disabled={
-                    region.x === DEFAULT_DETECTION_SETTINGS.region.x &&
-                    region.y === DEFAULT_DETECTION_SETTINGS.region.y &&
-                    region.width === DEFAULT_DETECTION_SETTINGS.region.width &&
-                    region.height === DEFAULT_DETECTION_SETTINGS.region.height
+                    detectionSettings.regions.length === DEFAULT_DETECTION_SETTINGS.regions.length &&
+                    detectionSettings.regions.every((r, i) => {
+                      const d = DEFAULT_DETECTION_SETTINGS.regions[i];
+                      return r.x === d.x && r.y === d.y && r.width === d.width && r.height === d.height;
+                    })
                   }
                 />
               </p>
-              <div className="grid grid-cols-2 gap-4">
-                <label className="flex flex-col gap-1 text-sm text-ink">
-                  X
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={Math.round(region.x * 100)}
-                    onChange={(e) =>
-                      updateDetectionSettings({ region: { x: Number(e.currentTarget.value) / 100 } })
-                    }
-                    className={fieldClass}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-ink">
-                  Y
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={Math.round(region.y * 100)}
-                    onChange={(e) =>
-                      updateDetectionSettings({ region: { y: Number(e.currentTarget.value) / 100 } })
-                    }
-                    className={fieldClass}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-ink">
-                  Width
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={Math.round(region.width * 100)}
-                    onChange={(e) =>
-                      updateDetectionSettings({ region: { width: Number(e.currentTarget.value) / 100 } })
-                    }
-                    className={fieldClass}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-ink">
-                  Height
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={Math.round(region.height * 100)}
-                    onChange={(e) =>
-                      updateDetectionSettings({ region: { height: Number(e.currentTarget.value) / 100 } })
-                    }
-                    className={fieldClass}
-                  />
-                </label>
+              <div className="flex flex-col gap-3">
+                {detectionSettings.regions.map((region, index) => (
+                  <div key={index} className="rounded border border-ink/10 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-medium uppercase tracking-wide text-ink/60">
+                        Region {index + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeRegion(index)}
+                        disabled={detectionSettings.regions.length <= 1}
+                        className={resetButtonClass}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="flex flex-col gap-1 text-sm text-ink">
+                        X
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={Math.round(region.x * 100)}
+                          onChange={(e) => updateRegion(index, { x: Number(e.currentTarget.value) / 100 })}
+                          className={fieldClass}
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1 text-sm text-ink">
+                        Y
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={Math.round(region.y * 100)}
+                          onChange={(e) => updateRegion(index, { y: Number(e.currentTarget.value) / 100 })}
+                          className={fieldClass}
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1 text-sm text-ink">
+                        Width
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={Math.round(region.width * 100)}
+                          onChange={(e) => updateRegion(index, { width: Number(e.currentTarget.value) / 100 })}
+                          className={fieldClass}
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1 text-sm text-ink">
+                        Height
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={Math.round(region.height * 100)}
+                          onChange={(e) => updateRegion(index, { height: Number(e.currentTarget.value) / 100 })}
+                          className={fieldClass}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
               </div>
+              <button type="button" onClick={addRegion} className={`mt-3 w-full ${secondaryButtonClass}`}>
+                Add Region
+              </button>
               <p className="mt-2 text-xs text-ink/70">
-                Relative to the top-left of the selected window. Tune it with the preview on the
-                Detect page until it tightly frames the map name.
+                Relative to the top-left of the selected window. Each region is captured and OCR'd
+                separately on scan - tune them with the previews on the Detect page.
               </p>
             </div>
 

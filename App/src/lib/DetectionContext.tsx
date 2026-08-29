@@ -4,6 +4,7 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { createWorker } from "tesseract.js";
 import type { Worker } from "tesseract.js";
 import {
+  DEFAULT_REGION,
   DetectionRegion,
   DetectionSettings,
   loadDetectionSettings,
@@ -21,17 +22,20 @@ interface CapturableWindow {
 interface DetectionContextValue {
   settings: DetectionSettings;
   scanning: boolean;
-  lastText: string;
+  lastTexts: string[];
   lastMatch: string | null;
   scanDuration: number | null;
-  preview: string | null;
+  previews: string[];
   error: string | null;
   windows: CapturableWindow[];
   images: GalleryImage[];
   scanNow: () => Promise<void>;
   refreshWindows: () => void;
   refreshGalleryImages: () => void;
-  updateSettings: (patch: Partial<Omit<DetectionSettings, "region">> & { region?: Partial<DetectionRegion> }) => void;
+  updateSettings: (patch: Partial<DetectionSettings>) => void;
+  addRegion: () => void;
+  updateRegion: (index: number, patch: Partial<DetectionRegion>) => void;
+  removeRegion: (index: number) => void;
   setScanShortcut: (accelerator: string) => Promise<void>;
 }
 
@@ -40,10 +44,10 @@ const DetectionContext = createContext<DetectionContextValue | null>(null);
 export function DetectionProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<DetectionSettings>(() => loadDetectionSettings());
   const [scanning, setScanning] = useState(false);
-  const [lastText, setLastText] = useState("");
+  const [lastTexts, setLastTexts] = useState<string[]>([]);
   const [lastMatch, setLastMatch] = useState<string | null>(null);
   const [scanDuration, setScanDuration] = useState<number | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [windows, setWindows] = useState<CapturableWindow[]>([]);
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -94,14 +98,24 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     invoke<GalleryImage[]>("list_gallery_images").then(setImages);
   }
 
-  function updateSettings(patch: Partial<Omit<DetectionSettings, "region">> & { region?: Partial<DetectionRegion> }) {
-    const next: DetectionSettings = {
-      ...settingsRef.current,
-      ...patch,
-      region: { ...settingsRef.current.region, ...patch.region },
-    };
+  function updateSettings(patch: Partial<DetectionSettings>) {
+    const next: DetectionSettings = { ...settingsRef.current, ...patch };
     setSettings(next);
     saveDetectionSettings(next);
+  }
+
+  function addRegion() {
+    updateSettings({ regions: [...settingsRef.current.regions, { ...DEFAULT_REGION }] });
+  }
+
+  function updateRegion(index: number, patch: Partial<DetectionRegion>) {
+    const regions = settingsRef.current.regions.map((r, i) => (i === index ? { ...r, ...patch } : r));
+    updateSettings({ regions });
+  }
+
+  function removeRegion(index: number) {
+    const regions = settingsRef.current.regions.filter((_, i) => i !== index);
+    updateSettings({ regions: regions.length > 0 ? regions : [{ ...DEFAULT_REGION }] });
   }
 
   async function setScanShortcut(accelerator: string) {
@@ -116,23 +130,24 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       setError("Pick a window to capture first.");
       return;
     }
+    if (currentSettings.regions.length === 0) {
+      setError("Add at least one scan region first.");
+      return;
+    }
     setScanning(true);
     setError(null);
     const startedAt = performance.now();
     try {
-      const [freshImages, dataUrl] = await Promise.all([
+      const [freshImages, dataUrls] = await Promise.all([
         invoke<GalleryImage[]>("list_gallery_images"),
-        invoke<string>("capture_screen_region", {
-          x: currentSettings.region.x,
-          y: currentSettings.region.y,
-          width: currentSettings.region.width,
-          height: currentSettings.region.height,
+        invoke<string[]>("capture_screen_region", {
+          regions: currentSettings.regions.map(({ x, y, width, height }) => ({ x, y, width, height })),
           windowTitle: currentSettings.windowTitle,
           brightnessThreshold: currentSettings.brightnessThreshold,
         }),
       ]);
       setImages(freshImages);
-      setPreview(dataUrl);
+      setPreviews(dataUrls);
 
       if (!workerRef.current) {
         workerRef.current = await createWorker("eng");
@@ -141,9 +156,14 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      const { data } = await workerRef.current.recognize(dataUrl);
-      const text = data.text.trim();
-      setLastText(text);
+      // OCR runs sequentially through the one shared worker, one region at a
+      // time, rather than spinning up a worker per region.
+      const texts: string[] = [];
+      for (const dataUrl of dataUrls) {
+        const { data } = await workerRef.current.recognize(dataUrl);
+        texts.push(data.text.trim());
+      }
+      setLastTexts(texts);
 
       // Try the preferred creator's maps first so a shared map name doesn't
       // get matched to someone else's version; fall back to the full set if
@@ -152,14 +172,25 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       const preferredImages = preferredCreator
         ? freshImages.filter((image) => image.creator === preferredCreator)
         : freshImages;
-      const match =
-        findBestMapMatch(text, preferredImages, currentSettings.threshold) ??
-        (preferredCreator ? findBestMapMatch(text, freshImages, currentSettings.threshold) : null);
-      if (match) {
-        setLastMatch(match.name);
-        if (lastSentRef.current !== match.path) {
-          lastSentRef.current = match.path;
-          await emit("update-content", { imageUrl: convertFileSrc(match.path) });
+
+      // Each region is matched independently and the best-scoring hit across
+      // all of them wins, so it doesn't matter which region actually framed
+      // the map name.
+      let bestMatch: (GalleryImage & { score: number }) | null = null;
+      for (const text of texts) {
+        const match =
+          findBestMapMatch(text, preferredImages, currentSettings.threshold) ??
+          (preferredCreator ? findBestMapMatch(text, freshImages, currentSettings.threshold) : null);
+        if (match && (!bestMatch || match.score > bestMatch.score)) {
+          bestMatch = match;
+        }
+      }
+
+      if (bestMatch) {
+        setLastMatch(bestMatch.name);
+        if (lastSentRef.current !== bestMatch.path) {
+          lastSentRef.current = bestMatch.path;
+          await emit("update-content", { imageUrl: convertFileSrc(bestMatch.path) });
         }
       } else {
         setLastMatch(null);
@@ -175,10 +206,10 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
   const value: DetectionContextValue = {
     settings,
     scanning,
-    lastText,
+    lastTexts,
     lastMatch,
     scanDuration,
-    preview,
+    previews,
     error,
     windows,
     images,
@@ -186,6 +217,9 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     refreshWindows,
     refreshGalleryImages,
     updateSettings,
+    addRegion,
+    updateRegion,
+    removeRegion,
     setScanShortcut,
   };
 

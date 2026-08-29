@@ -6,15 +6,17 @@ export interface DetectionRegion {
 }
 
 export interface DetectionSettings {
-  region: DetectionRegion;
+  regions: DetectionRegion[];
   threshold: number;
   windowTitle: string;
   brightnessThreshold: number;
   scanShortcut: string;
 }
 
+export const DEFAULT_REGION: DetectionRegion = { x: 0.3, y: 0.75, width: 0.4, height: 0.15 };
+
 export const DEFAULT_DETECTION_SETTINGS: DetectionSettings = {
-  region: { x: 0.3, y: 0.75, width: 0.4, height: 0.15 },
+  regions: [DEFAULT_REGION],
   threshold: 0.55,
   windowTitle: "DeadByDaylight",
   brightnessThreshold: 120,
@@ -28,10 +30,21 @@ export function loadDetectionSettings(): DetectionSettings {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_DETECTION_SETTINGS;
     const parsed = JSON.parse(raw);
+
+    // Older versions stored a single `region` object instead of `regions`.
+    let regions: DetectionRegion[];
+    if (Array.isArray(parsed.regions) && parsed.regions.length > 0) {
+      regions = parsed.regions.map((r: Partial<DetectionRegion>) => ({ ...DEFAULT_REGION, ...r }));
+    } else if (parsed.region) {
+      regions = [{ ...DEFAULT_REGION, ...parsed.region }];
+    } else {
+      regions = DEFAULT_DETECTION_SETTINGS.regions;
+    }
+
     return {
       ...DEFAULT_DETECTION_SETTINGS,
       ...parsed,
-      region: { ...DEFAULT_DETECTION_SETTINGS.region, ...parsed.region },
+      regions,
     };
   } catch {
     return DEFAULT_DETECTION_SETTINGS;

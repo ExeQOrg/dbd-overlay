@@ -4,7 +4,7 @@ import { pageClass, primaryButtonClass, panelClass } from "../lib/Styles";
 import PageHeading from "../components/PageHeading";
 
 export default function MapDetectionPage() {
-  const { settings, scanning, lastText, lastMatch, scanDuration, preview, error, scanNow } = useDetection();
+  const { settings, scanning, lastTexts, lastMatch, scanDuration, previews, error, scanNow } = useDetection();
 
   return (
     <main className={pageClass}>
@@ -24,10 +24,6 @@ export default function MapDetectionPage() {
       <div className="flex w-full max-w-[360px] flex-col gap-6 text-left">
         <div className={`flex flex-col gap-2 p-4 text-left font-mono text-sm text-ink ${panelClass}`}>
           <div>
-            <span className="font-sans font-medium">Last OCR text: </span>
-            {lastText || "—"}
-          </div>
-          <div>
             <span className="font-sans font-medium">Matched map: </span>
             {lastMatch ?? "No match"}
           </div>
@@ -38,14 +34,19 @@ export default function MapDetectionPage() {
           <p className="font-mono text-xs text-ink/70">Scan took {Math.round(scanDuration)} ms</p>
         )}
 
-        {preview && (
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-sm font-medium text-ink">Scan region preview</span>
-            <img
-              src={preview}
-              alt="Scan region preview"
-              className="max-w-full rounded border border-ink/15"
-            />
+        {previews.length > 0 && (
+          <div className="flex flex-col gap-5">
+            {previews.map((preview, index) => (
+              <div key={index} className="flex flex-col items-center gap-2">
+                <span className="text-sm font-medium text-ink">Region {index + 1}</span>
+                <img
+                  src={preview}
+                  alt={`Scan region ${index + 1} preview`}
+                  className="max-w-full rounded border border-ink/15"
+                />
+                <p className="w-full font-mono text-xs text-ink/70">{lastTexts[index] || "—"}</p>
+              </div>
+            ))}
           </div>
         )}
       </div>

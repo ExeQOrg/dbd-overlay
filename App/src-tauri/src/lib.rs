@@ -410,15 +410,23 @@ fn list_capturable_windows() -> Result<Vec<CapturableWindow>, String> {
 
 // x, y, width, height are fractions (0.0-1.0) of the captured window, so the
 // scan region stays correct regardless of the window's resolution/scaling.
-#[tauri::command]
-fn capture_screen_region(
+#[derive(serde::Deserialize)]
+struct RegionInput {
     x: f64,
     y: f64,
     width: f64,
     height: f64,
+}
+
+// Captures the target window once and crops out every requested region from
+// that single capture, so scanning N regions costs one window enumeration +
+// screenshot instead of N.
+#[tauri::command]
+fn capture_screen_region(
+    regions: Vec<RegionInput>,
     window_title: String,
     brightness_threshold: u8,
-) -> Result<String, String> {
+) -> Result<Vec<String>, String> {
     let windows = Window::all().map_err(|e| e.to_string())?;
     let needle = window_title.to_lowercase();
     let window = windows
@@ -433,32 +441,37 @@ fn capture_screen_region(
     let win_width = image.width();
     let win_height = image.height();
 
-    let px = (x.clamp(0.0, 1.0) * win_width as f64) as u32;
-    let py = (y.clamp(0.0, 1.0) * win_height as f64) as u32;
-    let pw = (width.clamp(0.0, 1.0) * win_width as f64)
-        .max(1.0)
-        .min((win_width.saturating_sub(px)) as f64) as u32;
-    let ph = (height.clamp(0.0, 1.0) * win_height as f64)
-        .max(1.0)
-        .min((win_height.saturating_sub(py)) as f64) as u32;
+    let mut results = Vec::with_capacity(regions.len());
+    for region in &regions {
+        let px = (region.x.clamp(0.0, 1.0) * win_width as f64) as u32;
+        let py = (region.y.clamp(0.0, 1.0) * win_height as f64) as u32;
+        let pw = (region.width.clamp(0.0, 1.0) * win_width as f64)
+            .max(1.0)
+            .min((win_width.saturating_sub(px)) as f64) as u32;
+        let ph = (region.height.clamp(0.0, 1.0) * win_height as f64)
+            .max(1.0)
+            .min((win_height.saturating_sub(py)) as f64) as u32;
 
-    let cropped = image::imageops::crop(&mut image, px, py, pw, ph).to_image();
+        let cropped = image::imageops::crop(&mut image, px, py, pw, ph).to_image();
 
-    // Map names render as solid light text over a translucent bar, but the
-    // game background behind/around it is busy and confuses the OCR engine
-    // into "reading" nonsense. Crushing the crop to grayscale then to pure
-    // black/white isolates the bright text and drops most of that noise.
-    let mut gray = image::DynamicImage::ImageRgba8(cropped).to_luma8();
-    for pixel in gray.pixels_mut() {
-        pixel[0] = if pixel[0] >= brightness_threshold { 255 } else { 0 };
+        // Map names render as solid light text over a translucent bar, but the
+        // game background behind/around it is busy and confuses the OCR engine
+        // into "reading" nonsense. Crushing the crop to grayscale then to pure
+        // black/white isolates the bright text and drops most of that noise.
+        let mut gray = image::DynamicImage::ImageRgba8(cropped).to_luma8();
+        for pixel in gray.pixels_mut() {
+            pixel[0] = if pixel[0] >= brightness_threshold { 255 } else { 0 };
+        }
+
+        let mut buf: Vec<u8> = Vec::new();
+        image::DynamicImage::ImageLuma8(gray)
+            .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+            .map_err(|e| e.to_string())?;
+
+        results.push(format!("data:image/png;base64,{}", BASE64.encode(&buf)));
     }
 
-    let mut buf: Vec<u8> = Vec::new();
-    image::DynamicImage::ImageLuma8(gray)
-        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
-        .map_err(|e| e.to_string())?;
-
-    Ok(format!("data:image/png;base64,{}", BASE64.encode(&buf)))
+    Ok(results)
 }
 
 // Called from the frontend whenever the user (re)maps the manual-scan
