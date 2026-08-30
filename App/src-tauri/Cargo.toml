@@ -14,6 +14,9 @@ edition = "2021"
 name = "dbd_toolbox_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+portable = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

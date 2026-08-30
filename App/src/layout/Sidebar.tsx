@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { invoke } from "@tauri-apps/api/core";
 import packageJson from "../../package.json";
 
 const tabs = [
@@ -12,6 +14,14 @@ const linkInactive = "text-bone/55 hover:bg-bone/10 hover:text-bone";
 const linkActive = "bg-blood text-bone shadow-sm";
 
 export default function Sidebar() {
+  const [isPortable, setIsPortable] = useState(false);
+
+  useEffect(() => {
+    invoke<boolean>("is_portable")
+      .then(setIsPortable)
+      .catch(() => setIsPortable(false));
+  }, []);
+
   return (
     <nav className="relative flex h-screen w-20 shrink-0 flex-col justify-between border-r border-black/40 bg-fog-dark py-4">
       <div className="flex flex-col gap-2 px-2">
@@ -38,6 +48,7 @@ export default function Sidebar() {
         </NavLink>
         <p className="mt-2 text-center font-mono text-[10px] text-bone/50">
           v{packageJson.version}
+          {isPortable && <span className="block text-bone/35">portable</span>}
         </p>
       </div>
     </nav>

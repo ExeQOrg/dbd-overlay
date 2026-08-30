@@ -95,6 +95,15 @@ fn get_maps_sync_status(app: tauri::AppHandle) -> MapsSyncState {
     app.state::<MapsSyncStateStore>().0.lock().unwrap().clone()
 }
 
+// Set only on the raw exe built with `--features portable` in CI (see
+// .github/workflows/release.yml) - the installer builds don't set it. Lets
+// the frontend show a "portable" badge and, later, skip update-checking for
+// copies that didn't come from an installer.
+#[tauri::command]
+fn is_portable() -> bool {
+    cfg!(feature = "portable")
+}
+
 fn latest_maps_commit_sha(agent: &ureq::Agent) -> Result<String, String> {
     let url = format!(
         "https://api.github.com/repos/{MAPS_REPO_OWNER}/{MAPS_REPO_NAME}/commits?path={MAPS_REPO_DIR}&per_page=1"
@@ -578,7 +587,8 @@ pub fn run() {
             capture_screen_region,
             open_obs_popout,
             get_maps_sync_status,
-            set_scan_shortcut
+            set_scan_shortcut,
+            is_portable
         ])
         .setup(|app| {
             images_dir(app.handle())?;
