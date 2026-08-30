@@ -29,7 +29,7 @@ interface DetectionContextValue {
   error: string | null;
   windows: CapturableWindow[];
   images: GalleryImage[];
-  scanNow: () => Promise<void>;
+  scanNow: (trigger?: "manual" | "auto") => Promise<void>;
   refreshWindows: () => void;
   refreshGalleryImages: () => void;
   updateSettings: (patch: Partial<DetectionSettings>) => void;
@@ -125,7 +125,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
     updateSettings({ scanShortcut: accelerator });
   }
 
-  async function scanNow() {
+  async function scanNow(trigger: "manual" | "auto" = "manual") {
     if (scanningRef.current) return;
     const currentSettings = settingsRef.current;
     if (!currentSettings.windowTitle) {
@@ -136,6 +136,17 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       setError("Add at least one scan region first.");
       return;
     }
+    const activeRegions = currentSettings.regions.filter(
+      (r) => r.enabled && (trigger === "auto" ? r.scanOnAutoDetect : r.scanOnShortcut)
+    );
+    if (activeRegions.length === 0) {
+      setError(
+        trigger === "auto"
+          ? "No regions are enabled for auto-detect."
+          : "No regions are enabled for manual/shortcut scans."
+      );
+      return;
+    }
     setScanning(true);
     setError(null);
     const startedAt = performance.now();
@@ -143,7 +154,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
       const [freshImages, dataUrls] = await Promise.all([
         invoke<GalleryImage[]>("list_gallery_images"),
         invoke<string[]>("capture_screen_region", {
-          regions: currentSettings.regions.map(({ x, y, width, height }) => ({ x, y, width, height })),
+          regions: activeRegions.map(({ x, y, width, height, grayscale }) => ({ x, y, width, height, grayscale })),
           windowTitle: currentSettings.windowTitle,
           brightnessThreshold: currentSettings.brightnessThreshold,
         }),
@@ -221,7 +232,7 @@ export function DetectionProvider({ children }: { children: ReactNode }) {
 
     (async function loop() {
       while (autoDetectTokenRef.current === token) {
-        await scanNow();
+        await scanNow("auto");
         if (autoDetectTokenRef.current !== token) break;
         await new Promise<void>((resolve) => {
           autoDetectTimeoutRef.current = setTimeout(resolve, settingsRef.current.autoDetectInterval * 1000);

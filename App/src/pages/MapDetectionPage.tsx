@@ -11,7 +11,7 @@ export default function MapDetectionPage() {
       <PageHeading>Map Detection</PageHeading>
 
       <button
-        onClick={scanNow}
+        onClick={() => scanNow()}
         disabled={scanning}
         className={`mb-2 ${primaryButtonClass} disabled:opacity-60`}
       >

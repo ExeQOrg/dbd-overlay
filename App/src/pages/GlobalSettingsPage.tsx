@@ -32,6 +32,7 @@ import {
 import ResetButton from "../components/ResetButton";
 import PageHeading from "../components/PageHeading";
 import Accordion from "../components/Accordion";
+import Switch from "../components/Switch";
 
 const anchorOptions: { value: Anchor; label: string }[] = [
   { value: "top-left", label: "Top Left" },
@@ -403,7 +404,16 @@ export default function GlobalSettingsPage() {
                     detectionSettings.regions.length === DEFAULT_DETECTION_SETTINGS.regions.length &&
                     detectionSettings.regions.every((r, i) => {
                       const d = DEFAULT_DETECTION_SETTINGS.regions[i];
-                      return r.x === d.x && r.y === d.y && r.width === d.width && r.height === d.height;
+                      return (
+                        r.x === d.x &&
+                        r.y === d.y &&
+                        r.width === d.width &&
+                        r.height === d.height &&
+                        r.enabled === d.enabled &&
+                        r.scanOnShortcut === d.scanOnShortcut &&
+                        r.scanOnAutoDetect === d.scanOnAutoDetect &&
+                        r.grayscale === d.grayscale
+                      );
                     })
                   }
                 />
@@ -470,6 +480,28 @@ export default function GlobalSettingsPage() {
                         />
                       </label>
                     </div>
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                      <Switch
+                        checked={region.enabled}
+                        onChange={(checked) => updateRegion(index, { enabled: checked })}
+                        label="Enabled"
+                      />
+                      <Switch
+                        checked={region.scanOnShortcut}
+                        onChange={(checked) => updateRegion(index, { scanOnShortcut: checked })}
+                        label="Shortcut"
+                      />
+                      <Switch
+                        checked={region.scanOnAutoDetect}
+                        onChange={(checked) => updateRegion(index, { scanOnAutoDetect: checked })}
+                        label="Auto-detect"
+                      />
+                      <Switch
+                        checked={region.grayscale}
+                        onChange={(checked) => updateRegion(index, { grayscale: checked })}
+                        label="Grayscale"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -478,7 +510,10 @@ export default function GlobalSettingsPage() {
               </button>
               <p className="mt-2 text-xs text-ink/70">
                 Relative to the top-left of the selected window. Each region is captured and OCR'd
-                separately on scan - tune them with the previews on the Detect page.
+                separately on scan - tune them with the previews on the Detect page. Shortcut and
+                auto-detect can be toggled independently, so a region can skip one trigger while
+                staying active for the other; Grayscale controls whether that region gets the
+                black/white threshold below or is left in color.
               </p>
             </div>
 
