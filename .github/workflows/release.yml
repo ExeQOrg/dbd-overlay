@@ -14,8 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'ubuntu-24.04'
-            args: ''
+          # - platform: 'ubuntu-24.04'
+          #   args: ''
           - platform: 'windows-latest'
             args: ''
 
