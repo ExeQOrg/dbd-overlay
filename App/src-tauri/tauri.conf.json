@@ -22,7 +22,8 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "$APPDATA/Maps/**"
+          "$APPDATA/Maps/**",
+          "$APPDATA/CustomMaps/**"
         ]
       }
     }

@@ -5,6 +5,7 @@ use std::fs;
 use std::time::Duration;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri_plugin_opener::OpenerExt;
 use xcap::Window;
 
 #[derive(Serialize, Clone)]
@@ -19,6 +20,15 @@ const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "webp", "svg"]
 
 fn images_dir(app: &tauri::AppHandle) -> tauri::Result<std::path::PathBuf> {
     let dir = app.path().app_data_dir()?.join("Maps");
+    fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+// Lives alongside (not inside) the synced Maps/ dir specifically so that
+// replace_maps' remove_dir_all/rename swap (see that fn) never touches it -
+// users can drop their own callouts here and a map pack update won't wipe them.
+fn custom_images_dir(app: &tauri::AppHandle) -> tauri::Result<std::path::PathBuf> {
+    let dir = app.path().app_data_dir()?.join("CustomMaps");
     fs::create_dir_all(&dir)?;
     Ok(dir)
 }
@@ -335,45 +345,48 @@ fn collect_family_images(
     Ok(())
 }
 
+// Maps/<Creator>/<Family or loose file>/... - shared by the synced Maps dir
+// and the user-owned CustomMaps dir so both are browsable the same way.
+fn collect_root_images(root: &std::path::Path, images: &mut Vec<GalleryImage>) -> std::io::Result<()> {
+    for creator_entry in fs::read_dir(root)?.filter_map(|entry| entry.ok()) {
+        let creator_path = creator_entry.path();
+        if !creator_path.is_dir() {
+            continue;
+        }
+        let creator = dir_name_string(&creator_path);
+
+        for sub_entry in fs::read_dir(&creator_path)?.filter_map(|entry| entry.ok()) {
+            let sub_path = sub_entry.path();
+            if sub_path.is_dir() {
+                let family = dir_name_string(&sub_path);
+                collect_family_images(&sub_path, &creator, &family, images)?;
+            } else if is_image_file(&sub_path) {
+                // an image placed directly under the creator folder, with no family subfolder
+                images.push(GalleryImage {
+                    name: file_stem_string(&sub_path),
+                    creator: creator.clone(),
+                    family: String::new(),
+                    path: sub_path.to_string_lossy().to_string(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
 // Runs the directory walk on a blocking thread (see capture_screen_region's
 // comment) since this is invoked alongside every scan, not just on-demand
 // gallery refreshes.
 #[tauri::command]
 async fn list_gallery_images(app: tauri::AppHandle) -> Result<Vec<GalleryImage>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let root = images_dir(&app).map_err(|e| e.to_string())?;
         let mut images: Vec<GalleryImage> = Vec::new();
 
-        for creator_entry in fs::read_dir(&root)
-            .map_err(|e| e.to_string())?
-            .filter_map(|entry| entry.ok())
-        {
-            let creator_path = creator_entry.path();
-            if !creator_path.is_dir() {
-                continue;
-            }
-            let creator = dir_name_string(&creator_path);
+        let root = images_dir(&app).map_err(|e| e.to_string())?;
+        collect_root_images(&root, &mut images).map_err(|e| e.to_string())?;
 
-            for sub_entry in fs::read_dir(&creator_path)
-                .map_err(|e| e.to_string())?
-                .filter_map(|entry| entry.ok())
-            {
-                let sub_path = sub_entry.path();
-                if sub_path.is_dir() {
-                    let family = dir_name_string(&sub_path);
-                    collect_family_images(&sub_path, &creator, &family, &mut images)
-                        .map_err(|e| e.to_string())?;
-                } else if is_image_file(&sub_path) {
-                    // an image placed directly under the creator folder, with no family subfolder
-                    images.push(GalleryImage {
-                        name: file_stem_string(&sub_path),
-                        creator: creator.clone(),
-                        family: String::new(),
-                        path: sub_path.to_string_lossy().to_string(),
-                    });
-                }
-            }
-        }
+        let custom_root = custom_images_dir(&app).map_err(|e| e.to_string())?;
+        collect_root_images(&custom_root, &mut images).map_err(|e| e.to_string())?;
 
         images.sort_by(|a, b| {
             a.creator
@@ -517,6 +530,12 @@ fn set_scan_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<(), Stri
 }
 
 #[tauri::command]
+fn open_custom_maps_folder(app: tauri::AppHandle) -> Result<(), String> {
+    let dir = custom_images_dir(&app).map_err(|e| e.to_string())?;
+    app.opener().reveal_item_in_dir(dir).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn open_obs_popout(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("overlay-popout") {
         return window.set_focus().map_err(|e| e.to_string());
@@ -588,12 +607,14 @@ pub fn run() {
             list_capturable_windows,
             capture_screen_region,
             open_obs_popout,
+            open_custom_maps_folder,
             get_maps_sync_status,
             set_scan_shortcut,
             is_portable
         ])
         .setup(|app| {
             images_dir(app.handle())?;
+            custom_images_dir(app.handle())?;
             create_overlay(app.handle())?;
             // Ctrl+O is a systemwide hotkey, so a second running instance can't
             // claim it - don't let that failure take down the whole instance.

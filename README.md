@@ -68,6 +68,14 @@ folder from GitHub at startup, so it's always current without needing a new
 release. Want to contribute a callout set? Open a PR against this
 repository's `Maps/` directory.
 
+Want to use your own callouts without submitting them? Settings has an
+**Open Custom Maps Folder** button that opens a separate `CustomMaps`
+folder alongside the synced map pack. Drop images in there using the same
+layout (`Creator/Map Name.png`, or `Creator/Family/Map Name.png`) and
+they'll show up in the gallery and detection like any other map — this
+folder is never touched by map pack syncs, so your own images won't get
+wiped out by an update.
+
 ## Tech stack
 
 DBD Toolbox is built with [Tauri 2](https://tauri.app/), pairing a small,

@@ -240,6 +240,22 @@ export default function GlobalSettingsPage() {
           </p>
         </div>
 
+        <div>
+          <p className="mb-2 text-sm font-medium text-ink">Custom maps</p>
+          <button
+            type="button"
+            onClick={() => invoke("open_custom_maps_folder").catch(() => {})}
+            className={`w-full ${secondaryButtonClass}`}
+          >
+            Open Custom Maps Folder
+          </button>
+          <p className="mt-2 text-xs text-ink/70">
+            Drop your own callout images in here, organized the same way as the gallery
+            (Creator/Map name, or Creator/Family/Map name). This folder is separate from the
+            synced map pack, so your own images are never touched or deleted by map pack updates.
+          </p>
+        </div>
+
         <Accordion title="Overlay">
           <div className="flex flex-col gap-6">
             <label className={sliderLabelClass}>
