@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { useDetection } from "../lib/DetectionContext";
 import { getCreators } from "../lib/Gallery";
 import {
@@ -51,6 +52,16 @@ export default function GlobalSettingsPage() {
 
   const [settings, setSettings] = useState<GlobalSettings>(() => loadGlobalSettings());
   const creators = getCreators(images);
+
+  // Only known once is_portable() resolves - stays null (and the button
+  // hidden) until then so it doesn't flash for portable users.
+  const [isPortable, setIsPortable] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    invoke<boolean>("is_portable")
+      .then(setIsPortable)
+      .catch(() => setIsPortable(false));
+  }, []);
 
   function updateSettings(patch: Partial<GlobalSettings>) {
     const next = { ...settings, ...patch };
@@ -114,6 +125,15 @@ export default function GlobalSettingsPage() {
       <PageHeading>Settings</PageHeading>
 
       <div className="flex w-full max-w-[480px] flex-col gap-6 text-left">
+        {isPortable === false && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-ink">Updates</p>
+            <button type="button" onClick={() => {}} className={`w-full ${secondaryButtonClass}`}>
+              Check for Updates
+            </button>
+          </div>
+        )}
+
         <div>
           <p className="mb-2 flex items-center justify-between text-sm font-medium text-ink">
             <span>Preferred creator</span>
