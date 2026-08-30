@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:build": "tauri build",
-    "tauri:build:portable": "tauri build --no-bundle --features portable"
+    "tauri:build:portable": "tauri build --no-bundle --features portable",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

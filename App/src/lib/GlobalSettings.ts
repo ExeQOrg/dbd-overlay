@@ -1,3 +1,4 @@
+//Test
 export interface GlobalSettings {
   preferredCreator: string;
 }
