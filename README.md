@@ -13,6 +13,13 @@ tabbing to a wiki mid-loading-screen.
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="./Docs/images/demo-1.png" alt="DBD Toolbox gallery window" width="49%" />
+  <img src="./Docs/images/demo-2.png" alt="Map callout overlay in-game" width="49%" />
+</p>
+
 ## Features
 
 - 🔍 **Automatic map detection** — OCRs the loading screen in the
