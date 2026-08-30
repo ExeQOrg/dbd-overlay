@@ -8,6 +8,8 @@
     "opener:default",
     "core:window:allow-show",
     "core:window:allow-hide",
-    "core:window:allow-is-visible"
+    "core:window:allow-is-visible",
+    "updater:default",
+    "process:default"
   ]
 }

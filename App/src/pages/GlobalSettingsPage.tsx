@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { check, Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { useDetection } from "../lib/DetectionContext";
 import { getCreators } from "../lib/Gallery";
 import {
@@ -21,6 +23,7 @@ import { keyEventToAccelerator, formatAccelerator } from "../lib/Shortcut";
 import {
   pageClass,
   fieldClass,
+  primaryButtonClass,
   secondaryButtonClass,
   resetButtonClass,
   sliderLabelClass,
@@ -62,6 +65,36 @@ export default function GlobalSettingsPage() {
       .then(setIsPortable)
       .catch(() => setIsPortable(false));
   }, []);
+
+  type UpdateStatus =
+    | { state: "idle" }
+    | { state: "checking" }
+    | { state: "up-to-date" }
+    | { state: "available"; update: Update }
+    | { state: "installing" }
+    | { state: "error"; message: string };
+
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: "idle" });
+
+  async function checkForUpdates() {
+    setUpdateStatus({ state: "checking" });
+    try {
+      const update = await check();
+      setUpdateStatus(update ? { state: "available", update } : { state: "up-to-date" });
+    } catch (err) {
+      setUpdateStatus({ state: "error", message: String(err) });
+    }
+  }
+
+  async function installUpdate(update: Update) {
+    setUpdateStatus({ state: "installing" });
+    try {
+      await update.downloadAndInstall();
+      await relaunch();
+    } catch (err) {
+      setUpdateStatus({ state: "error", message: String(err) });
+    }
+  }
 
   function updateSettings(patch: Partial<GlobalSettings>) {
     const next = { ...settings, ...patch };
@@ -128,9 +161,56 @@ export default function GlobalSettingsPage() {
         {isPortable === false && (
           <div>
             <p className="mb-2 text-sm font-medium text-ink">Updates</p>
-            <button type="button" onClick={() => {}} className={`w-full ${secondaryButtonClass}`}>
-              Check for Updates
+            <button
+              type="button"
+              onClick={checkForUpdates}
+              disabled={
+                updateStatus.state === "checking" ||
+                updateStatus.state === "installing" ||
+                updateStatus.state === "available"
+              }
+              className={`w-full ${secondaryButtonClass}`}
+            >
+              {updateStatus.state === "checking"
+                ? "Checking…"
+                : updateStatus.state === "installing"
+                  ? "Installing update…"
+                  : "Check for Updates"}
             </button>
+            {updateStatus.state === "up-to-date" && (
+              <p className="mt-2 text-xs text-ink/70">You're on the latest version.</p>
+            )}
+            {updateStatus.state === "error" && (
+              <p className="mt-2 text-xs text-blood">{updateStatus.message}</p>
+            )}
+            {updateStatus.state === "available" && (
+              <div className="mt-2 rounded border border-ink/10 p-3">
+                <p className="text-sm font-medium text-ink">
+                  Version {updateStatus.update.version} is available
+                </p>
+                {updateStatus.update.body && (
+                  <p className="mt-1 whitespace-pre-line text-xs text-ink/70">
+                    {updateStatus.update.body}
+                  </p>
+                )}
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => installUpdate(updateStatus.update)}
+                    className={`flex-1 ${primaryButtonClass}`}
+                  >
+                    Update Now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUpdateStatus({ state: "idle" })}
+                    className={`flex-1 ${secondaryButtonClass}`}
+                  >
+                    Later
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
